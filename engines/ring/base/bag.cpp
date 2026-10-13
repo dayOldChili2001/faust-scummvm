@@ -314,13 +314,14 @@ Hotspot *Bag::getHotspot(const Common::Point &point) {
 }
 
 void Bag::draw(){
-	if (!_background || !_image3 || !_image6 || !_image8)
+	// Faust has no arrow images (FAUST.EXE 0x40e910 only needs the background and highlight)
+	if (!_background || !_image8)
 		return;
 
-	if (!_background->isInitialized()
-	 || !_image3->isInitialized()
-	 || !_image6->isInitialized()
-	 || !_image8->isInitialized())
+	if (!_background->isInitialized() || !_image8->isInitialized())
+		return;
+
+	if ((_image3 && !_image3->isInitialized()) || (_image6 && !_image6->isInitialized()))
 		return;
 
 	uint32 ticks = g_system->getMillis();
@@ -334,7 +335,8 @@ void Bag::draw(){
 		if (_hotspots.size() > 0)
 			_hotspots[0]->disable();
 	} else {
-		screen->draw(_image3, Common::Point(_origin.x + (int16)_field_58, _origin.y + (int16)_field_5C), kDrawTypeAlpha);
+		if (_image3)
+			screen->draw(_image3, Common::Point(_origin.x + (int16)_field_58, _origin.y + (int16)_field_5C), kDrawTypeAlpha);
 
 		if (_hotspots.size() > 0)
 			_hotspots[0]->enable();
@@ -344,7 +346,8 @@ void Bag::draw(){
 		if (_hotspots.size() > 1)
 			_hotspots[1]->disable();
 	} else {
-		screen->draw(_image6, Common::Point(_origin.x + (int16)_field_60, _origin.y + (int16)_field_64), kDrawTypeAlpha);
+		if (_image6)
+			screen->draw(_image6, Common::Point(_origin.x + (int16)_field_60, _origin.y + (int16)_field_64), kDrawTypeAlpha);
 
 		if (_hotspots.size() > 1)
 			_hotspots[1]->enable();
@@ -400,7 +403,7 @@ void Bag::draw(){
 			}
 
 			if (loaded)
-				screen->draw(image, Common::Point(offset + (int16)(_field_18 + image->getWidth()) / 2, _origin.y + (int16)_field_10), kDrawTypeAlpha);
+				screen->draw(image, Common::Point(offset + (int16)_field_18 / 2 - (int16)image->getWidth() / 2, _origin.y + (int16)_field_10), kDrawTypeAlpha);
 
 		} else {
 			AnimationImage *animation = image->getAnimation();
@@ -409,7 +412,7 @@ void Bag::draw(){
 			// Get active frame to draw
 			animation->updateCurrentImage();
 			animation->computeCurrentFrame(ticks);
-			animation->playFrame(Common::Point(offset + (int16)(_field_18 + animation->getCurrentImage()->getWidth()) / 2, _origin.y + (int16)_field_10));
+			animation->playFrame(Common::Point(offset + (int16)_field_18 / 2 - (int16)animation->getCurrentImage()->getWidth() / 2, _origin.y + (int16)_field_10));
 		}
 
 		// Update image coordinates
@@ -457,19 +460,16 @@ void Bag::initialize() {
 void Bag::reset() {
 	_isInitialized = false;
 
-	for (uint i = 0; i < _images.size();) {
+	// FAUST.EXE 0x40dea0: free the icons but keep their handles, which must stay in step with _objects
+	for (uint i = 0; i < _images.size(); i++) {
 		if (_images[i]->getField6C() == 2) {
-
 			AnimationImage *animation = _images[i]->getAnimation();
 			if (animation) {
 				animation->sub_416710();
 				animation->dealloc();
 			}
-
-			++i;
 		} else {
-			SAFE_DELETE(_images[i]);
-			_images.remove_at(i);
+			_images[i]->destroy();
 		}
 	}
 }

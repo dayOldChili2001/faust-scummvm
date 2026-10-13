@@ -117,7 +117,7 @@ void Animation::init(uint32 frameCount, float framerate, uint32 startFrame, byte
 	_paused = false;
 	_lastTicks = 0;
 	_field_2C = 1;
-	_field_2D = 0;
+	// FAUST.EXE 0x40f2a0 clears +0x2e here, not the play-once flag (+0x2d) set above
 	_tickInterval = 0;
 	_field_32 = 0;
 	_field_36 = 1;
@@ -283,7 +283,8 @@ uint32 Animation::computeCurrentFrame(uint32 ticks) {
 			if (offset)
 				_activeFrame -= offset;
 
-			if (_activeFrame < _frameCount) {
+			// FAUST.EXE 0x40f819: wraps below the start frame (signed)
+			if ((int32)_activeFrame < (int32)_startFrame) {
 				_activeFrame = _frameCount - 1;
 
 				++_field_58;
@@ -316,8 +317,7 @@ uint32 Animation::computeCurrentFrame(uint32 ticks) {
 				if (offset)
 					_activeFrame -= offset;
 
-
-				if (_activeFrame < _frameCount) {
+				if ((int32)_activeFrame < (int32)_startFrame) {
 					_field_57 = 1;
 					_activeFrame = _startFrame;
 
@@ -373,25 +373,26 @@ void Animation::setTicks(uint32 ticks) {
 	_field_5C = 1;
 }
 
+// FAUST.EXE 0x40f960: frames are 1-based, stored 0-based
 void Animation::setStartFrame(uint32 frame) {
 	if (frame > _frameCount)
-		error("[Animation::setActiveFrame] Frame number is too big (was: %d, max: %d)", frame, _frameCount);
+		error("[Animation::setStartFrame] Frame number is too big (was: %d, max: %d)", frame, _frameCount);
 
 	if (frame == 0)
-		error("[Animation::setActiveFrame] Frame number is too small (was: %d, min: 1)", frame);
+		error("[Animation::setStartFrame] Frame number is too small (was: %d, min: 1)", frame);
 
-	_activeFrame = frame;
+	_startFrame = frame - 1;
+	_activeFrame = frame - 1;
 }
 
+// FAUST.EXE 0x40f910: only moves the active frame; the exe logs bad frames and ignores them
 void Animation::setActiveFrame(uint32 frame) {
-	if (frame > _frameCount)
-		error("[Animation::setActiveFrame] Frame number is too big (was: %d, max: %d)", frame, _frameCount);
+	if (frame == 0 || frame > _frameCount) {
+		debugC(kRingDebugGraphics, "[Animation::setActiveFrame] Invalid frame number (was: %d, max: %d)", frame, _frameCount);
+		return;
+	}
 
-	if (frame == 0)
-		error("[Animation::setActiveFrame] Frame number is too small (was: %d, min: 1)", frame);
-
-	_startFrame = frame;
-	_activeFrame = frame;
+	_activeFrame = frame - 1;
 }
 
 void Animation::pauseOnFrame(uint32 frame, uint32 a2, uint32 a3) {
