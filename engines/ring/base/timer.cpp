@@ -66,8 +66,11 @@ TimerHandler::~TimerHandler() {
 }
 
 void TimerHandler::start(TimerId id, uint32 elapseTime) {
-	if (_timers.has(id))
-		error("[TimerHandler::start] Timer with that id already exists (%d)", id);
+	// The original (FAUST.EXE 0x48dc70) logs this and keeps the running timer
+	if (_timers.has(id)) {
+		warning("[TimerHandler::start] Timer with that id already exists (%d)", id);
+		return;
+	}
 
 	_timers.push_back(new Timer(id, elapseTime));
 }
