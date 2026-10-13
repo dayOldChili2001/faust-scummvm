@@ -202,12 +202,202 @@ void Zone7Faust::returnToMenu() {
 	_app->puzzleSetActive(kPuzzleGeneralMenu);
 }
 
+// FAUST.EXE 0x4a06c0
 void Zone7Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {
-	error("[Zone7Faust::onButtonUp] Not implemented");
+	switch (id) {
+	default:
+		break;
+
+	case kObject19:
+		// Clicking during the pact animation
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->varSetByte(49000, 1);
+		_app->varSetByte(49003, 1);
+		break;
+
+	case kObject49000:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0) {
+			_app->puzzleSetActive(kPuzzle49000);
+			_app->puzzleSetMod(kPuzzleMenu, 2, 19);
+			_app->playMovie("A04S01N02A01");
+			_app->soundStopAll(1024);
+			_app->soundPlay(41011, kSoundLoop);
+			pactLoop();
+		}
+		break;
+
+	case kObject49003:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		switch (target) {
+		default:
+			break;
+
+		case 0:
+			_app->puzzleSetActive(kPuzzle49001);
+			break;
+
+		case 1:
+			_app->objectSetAccessibilityOff(kObject49003, 0, 1);
+			_app->objectPresentationShow(kObject49003);
+			_app->varSetByte(49004, 1);
+			_app->_vm->update();
+			_app->soundPlay(41000, kSoundOnce);
+			break;
+
+		case 9:
+			_app->rotationSetAlp(41002, 33.0f);
+			_app->rotationSetBet(41002, 22.0f);
+			_app->rotationSetRan(41002, 87.0f);
+			_app->rotationSetActive(41002);
+
+			if (_app->varGetByte(49004) == 1) {
+				_app->displayFade("a04s02n01p03.bmp", "a04_black.bmp", 15, 0, kLoadFromCd, kArchiveArt);
+				_app->soundStop(41001, 1024);
+				_app->exitToMenu(kMenuAction0);
+			}
+			break;
+		}
+		break;
+	}
 }
 
+// FAUST.EXE 0x4a08a0
 void Zone7Faust::onAnimationNextFrame(Id animationId, const Common::String &name, uint32 frame, uint32 frameCount) {
-	error("[EventAnimationFaust::onAnimationNextFrameZone7] Not implemented");
+	switch (animationId) {
+	default:
+		break;
+
+	case 49000:
+		// Faust and Mephisto talking: a click (object 19) during it picks the answer
+		if (frame > 0)
+			_app->objectSetAccessibilityOn(kObject19);
+
+		if (frame != frameCount)
+			break;
+
+		_app->objectSetAccessibilityOff(kObject19);
+
+		if (_app->varGetByte(49000) == 0) {
+			_app->playMovie("A04S02N01P01S03");
+			_app->varSetByte(49001, 1);
+		} else {
+			_app->playMovie("A04S02N01P01S04");
+			_app->varSetByte(49001, 2);
+		}
+
+		_app->varSetByte(49000, 0);
+		pactLoop();
+		break;
+
+	case 49005: {
+		if (frame != frameCount)
+			break;
+
+		if (_app->soundIsPlaying(41001)) {
+			_app->soundStop(41001, 1024);
+			_app->soundStop(41002, 1024);
+			_app->soundPlay(41003 + rnd(7), kSoundOnce);
+		}
+
+		_app->varSetByte(49002, _app->varGetByte(49002) + 1);
+
+		uint32 index = rnd(7) + 4;
+		if (index >= 7) {
+			showPresentation(index, 49005);
+		} else if (_app->varGetByte(49002) >= 15 && _app->varGetByte(49003)) {
+			showPresentation(1, 49006);
+		} else if (_app->varGetByte(49001) == 0) {
+			showPresentation(2, 49000);
+		} else if (_app->varGetByte(49001) == 1) {
+			showPresentation(5, 49005);
+			_app->varSetByte(49001, 0);
+		} else if (_app->varGetByte(49001) == 2) {
+			showPresentation(6, 49005);
+			_app->varSetByte(49001, 0);
+		}
+		}
+		break;
+
+	case 49006:
+		if (frame == frameCount) {
+			if (_app->varGetByte(98014) == 0) {
+				_app->soundPlay(41001, kSoundLoop);
+				_app->rotationSetActive(41002);
+			} else {
+				returnToMenu();
+			}
+		} else if (frame == 30) {
+			_app->soundStopAll(1024);
+			_app->soundPlay(41013, kSoundOnce);
+		}
+		break;
+	}
+}
+
+void Zone7Faust::showPresentation(uint32 index, Id animationId) {
+	_app->objectPresentationShow(kObject49000, index);
+	_app->objectPresentationSetAnimationOnPuzzle(kObject49000, index, 0, animationId);
+}
+
+// FAUST.EXE 0x4a0470: the pact scene in puzzle 49000. Plays random reaction movies
+// until one of the talking animations is picked (they wait for a click on object 19)
+// or the scene has run long enough, then signs the pact.
+void Zone7Faust::pactLoop() {
+	uint32 previous = 55;
+	int32 count = _app->varGetByte(49002);
+
+	while (count < 30) {
+		++count;
+
+		if (_app->varGetByte(49003) && count > 15)
+			break;
+
+		_app->soundPlay(41003 + rnd(7), kSoundOnce);
+
+		uint32 index;
+		do {
+			index = rnd(7) + 4;
+		} while (index == previous);
+		previous = index;
+
+		if (index > 6) {
+			_app->playMovie(Common::String::format("A04S02N01P01S%02d", index));
+		} else if (_app->varGetByte(49001) == 0) {
+			showPresentation(2, 49000);
+			_app->varSetByte(49002, count);
+			return;
+		} else if (_app->varGetByte(49001) == 1) {
+			_app->playMovie("A04S02N01P01S05");
+			_app->varSetByte(49001, 0);
+		} else if (_app->varGetByte(49001) == 2) {
+			_app->playMovie("A04S02N01P01S06");
+			_app->varSetByte(49001, 0);
+		}
+	}
+
+	_app->soundStopAll(1024);
+	_app->puzzleSetMod(kPuzzleMenu, 1, 0);
+	_app->playMovie("A04S02N01P01S01");
+
+	if (_app->varGetByte(98014) == 0) {
+		_app->soundPlay(41001, kSoundLoop);
+		_app->rotationSetActive(41002);
+	} else {
+		returnToMenu();
+	}
 }
 
 } // End of namespace Ring

@@ -40,10 +40,13 @@ public:
 	void onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) override;
 	void onAnimationNextFrame(Id animationId, const Common::String &name, uint32 frame, uint32 frameCount) override;
 
+	void pactLoop();
+
 private:
 	ApplicationFaust *_app;
 
 	void returnToMenu();
+	void showPresentation(uint32 index, Id animationId);
 };
 
 } // End of namespace Ring

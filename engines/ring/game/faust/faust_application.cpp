@@ -2396,8 +2396,9 @@ void ApplicationFaust::sub_4AC4E0(uint32 type) {
 	}
 }
 
+// FAUST.EXE 0x4a0470 (zone 7)
 void ApplicationFaust::sub_4A08E0() {
-	error("[ApplicationFaust::sub_4A08E0] Not implemented");
+	_zone7->pactLoop();
 }
 
 void ApplicationFaust::sub_4A2CF0() {
