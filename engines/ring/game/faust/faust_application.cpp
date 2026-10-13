@@ -2401,4 +2401,39 @@ void ApplicationFaust::sub_4A2CF0() {
 
 #pragma endregion
 
+// FAUST.EXE 0x460d40: angle of the drag around its start point, clockwise from up (0..359)
+int32 ApplicationFaust::getDragAngle(DragControl *dragControl) {
+	// The original uses 180 / 3.14
+	const double radToDeg = 57.324840764331206;
+
+	int32 dx = dragControl->getCurrentCoords().x - dragControl->getCoords1().x;
+	int32 dy = dragControl->getCoords1().y - dragControl->getCurrentCoords().y;
+	double angle = dy ? atan((double)dx / dy) : 0.0;
+
+	if (dx == 0) {
+		if (dy > 0)
+			return 0;
+
+		return dy < 0 ? 180 : 0;
+	}
+
+	if (dx > 0) {
+		if (dy > 0)
+			return (int32)(angle * radToDeg);
+
+		if (dy == 0)
+			return 90;
+
+		return 180 - (int32)(angle * -radToDeg);
+	}
+
+	if (dy > 0)
+		return 360 - (int32)(angle * -radToDeg);
+
+	if (dy == 0)
+		return 270;
+
+	return 180 - (int32)(angle * -radToDeg);
+}
+
 } // End of namespace Ring

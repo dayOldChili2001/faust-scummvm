@@ -98,6 +98,9 @@ public:
 	void onAnimationNextFrame(Id animationId, const Common::String &name, uint32 frame, uint32 frameCount) override;
 	void onVisualList(Id id, uint32 type, const Common::Point &point) override;
 
+	// Helpers
+	static int32 getDragAngle(DragControl *dragControl);
+
 protected:
 	//////////////////////////////////////////////////////////////////////////
 	// Buttons
