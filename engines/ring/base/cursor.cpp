@@ -106,7 +106,7 @@ void CursorImage::draw() {
 		error("[CursorImage::draw] Invalid bit depth (%d)", _image->getBPP());
 
 	case 16:
-		CursorMan.replaceCursor((byte *)_image->getSurface()->getPixels(), _image->getWidth(), _image->getHeight(), -_offset.x, -_offset.y, 0, 1, &_image->getSurface()->format);
+		CursorMan.replaceCursor((byte *)_image->getSurface()->getPixels(), _image->getWidth(), _image->getHeight(), -_offset.x, -_offset.y, 0, &_image->getSurface()->format);
 		CursorMan.disableCursorPalette(true);
 		CursorMan.showMouse(true);
 		break;
@@ -137,7 +137,7 @@ void CursorImage::draw() {
 			error("[CursorImage::draw] Cannot convert cursor image to proper screen format");
 
 		// Replace cursor
-		CursorMan.replaceCursor((byte *)buf, _image->getWidth(), _image->getHeight(), -_offset.x, -_offset.y, 0, 1, &formatScreen);
+		CursorMan.replaceCursor((byte *)buf, _image->getWidth(), _image->getHeight(), -_offset.x, -_offset.y, 0, &formatScreen);
 		CursorMan.disableCursorPalette(true);
 		CursorMan.showMouse(true);
 
@@ -178,7 +178,7 @@ void CursorAnimation::draw() {
 
 	// Replace cursor
 	Graphics::PixelFormat format = g_system->getScreenFormat();
-	CursorMan.replaceCursor((byte *)getCurrentImage()->getSurface()->getPixels(), getCurrentImage()->getWidth(), getCurrentImage()->getHeight(), _offset.x, _offset.y, 0, 1, &format);
+	CursorMan.replaceCursor((byte *)getCurrentImage()->getSurface()->getPixels(), getCurrentImage()->getWidth(), getCurrentImage()->getHeight(), _offset.x, _offset.y, 0, &format);
 	CursorMan.disableCursorPalette(true);
 	CursorMan.showMouse(true);
 }

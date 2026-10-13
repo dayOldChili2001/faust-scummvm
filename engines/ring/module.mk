@@ -1,6 +1,7 @@
 MODULE := engines/ring
 
 MODULE_OBJS := \
+	metaengine.o \
 	base/accessibility.o \
 	base/application.o \
 	base/art.o \
@@ -51,7 +52,6 @@ MODULE_OBJS := \
 	sound/sound_loader.o \
 	sound/sound_manager.o \
 	debug.o \
-	detection.o \
 	ring.o
 
 ifdef ENABLE_RING1
@@ -152,3 +152,6 @@ endif
 
 # Include common rules
 include $(srcdir)/rules.mk
+
+# Detection objects
+DETECT_OBJS += $(MODULE)/detection.o

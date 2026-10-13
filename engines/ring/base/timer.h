@@ -28,12 +28,16 @@ namespace Ring {
 
 class Timer : public BaseObject, public Common::Serializable {
 public:
-	Timer() : BaseObject(0), _tickStart(0), _fired(0), _elapseTime(0) {}
+	Timer() : BaseObject(0), _tickStart(0), _fired(0), _elapseTime(0), _lastFire(0) {}
 	Timer(TimerId id, uint32 elapseTime);
 	~Timer();
 
 	void start();
 	void incrementFiredCount() { ++_fired; }
+
+	// Polled from the main loop (replaces the old threaded timer procs)
+	bool isDue(uint32 now) const { return now - _lastFire >= _elapseTime; }
+	void markFired(uint32 now) { _lastFire = now; }
 
 	// Accessors
 	void setTickStart(uint32 ticks) { _tickStart = ticks; }
@@ -50,10 +54,7 @@ private:
 	uint32 _tickStart;
 	uint32 _fired;
 	uint32 _elapseTime;
-	Common::String _reference;
-
-	static void handler(void *ptr);
-	void handle() const;
+	uint32 _lastFire;
 };
 
 class TimerHandler : public Common::Serializable {
@@ -66,6 +67,9 @@ public:
 	void stopAll();
 	bool has(TimerId id);
 	void incrementFiredCount(TimerId id);
+
+	// Collect the timers that are due and restart their interval
+	void collectDue(uint32 now, Common::Array<TimerId> &due);
 
 	// Serializable
 	void saveLoadWithSerializer(Common::Serializer &s) override;

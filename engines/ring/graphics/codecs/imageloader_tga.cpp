@@ -38,7 +38,7 @@ bool ImageLoaderTGA::load(ImageSurface *image, ArchiveType, ZoneId, LoadFrom, Dr
 	_filename = image->getName();
 
 	// Open a stream
-	Common::SeekableReadStream *stream = SearchMan.createReadStreamForMember(_filename);
+	Common::SeekableReadStream *stream = SearchMan.createReadStreamForMember(Common::Path(_filename, '/'));
 	if (!stream) {
 		warning("[ImageLoaderTGA::load] Error opening image file (%s)", _filename.c_str());
 		delete stream;

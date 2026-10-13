@@ -112,7 +112,7 @@ Debugger::Debugger(RingEngine *engine) : _engine(engine), _action(kActionNone), 
 }
 
 Debugger::~Debugger() {
-	DebugMan.clearAllDebugChannels();
+	DebugMan.disableAllDebugChannels();
 
 	resetCommand();
 
@@ -238,8 +238,7 @@ void Debugger::copyCommand(int argc, const char **argv) {
 		if (_commandParams[i] == NULL)
 			error("[Debugger::copyCommand] Cannot allocate memory for command parameters");
 
-		memset(_commandParams[i], 0, strlen(argv[i]) + 1);
-		strcpy(_commandParams[i], argv[i]);
+		memcpy(_commandParams[i], argv[i], strlen(argv[i]) + 1);
 	}
 
 	// Exit the debugger!
@@ -280,7 +279,7 @@ bool Debugger::cmdListFiles(int argc, const char **argv) {
 		Common::String filter(const_cast<char *>(argv[1]));
 
 		Common::ArchiveMemberList list;
-		int count = SearchMan.listMatchingMembers(list, filter);
+		int count = SearchMan.listMatchingMembers(list, Common::Path(filter, '/'));
 
 		debugPrintf("Number of matches: %d\n", count);
 		for (Common::ArchiveMemberList::iterator it = list.begin(); it != list.end(); ++it)
@@ -293,7 +292,7 @@ bool Debugger::cmdListFiles(int argc, const char **argv) {
 		if (!filename.contains(".at2"))
 			filename += ".at2";
 
-		if (!SearchMan.hasFile(filename)) {
+		if (!SearchMan.hasFile(Common::Path(filename, '/'))) {
 			debugPrintf("Cannot find file: %s\n", filename.c_str());
 			return true;
 		}
@@ -303,7 +302,7 @@ bool Debugger::cmdListFiles(int argc, const char **argv) {
 		archive->init(filename, kZoneNone, kLoadFromInvalid);
 
 		Common::ArchiveMemberList list;
-		int count = archive->listMatchingMembers(list, filter);
+		int count = archive->listMatchingMembers(list, Common::Path(filter, '/'));
 
 		debugPrintf("Number of matches: %d\n", count);
 		for (Common::ArchiveMemberList::iterator it = list.begin(); it != list.end(); ++it)
@@ -352,7 +351,7 @@ void Debugger::dumpFile(Common::String filename) {
 	if (!filename.contains(".at2"))
 		filename += ".at2";
 
-	if (!SearchMan.hasFile(filename)) {
+	if (!SearchMan.hasFile(Common::Path(filename, '/'))) {
 		debugPrintf("Cannot find file: %s\n", filename.c_str());
 		return;
 	}

@@ -67,7 +67,7 @@ void AquatorStream::alloc(bool isCompressed, const Graphics::PixelFormat &format
 	} else {
 		// Open a stream to the uncompressed aquator file
 		Common::String filename = Common::String::format("%s.aqi", _path.c_str());
-		Common::SeekableReadStream *archive = SearchMan.createReadStreamForMember(filename);
+		Common::SeekableReadStream *archive = SearchMan.createReadStreamForMember(Common::Path(filename, '/'));
 		if (!archive)
 			error("[AquatorStream::alloc] Error opening uncompressed aquator (%s)", filename.c_str());
 
@@ -116,7 +116,7 @@ void AquatorStream::initNode(Common::SeekableReadStream *stream, const Graphics:
 
 void AquatorStream::initStream(uint32 index) {
 	Common::String filename = Common::String::format("%s_%03i.aqc", _path.c_str(), index);
-	Common::SeekableReadStream *archive = SearchMan.createReadStreamForMember(filename);
+	Common::SeekableReadStream *archive = SearchMan.createReadStreamForMember(Common::Path(filename, '/'));
 	if (!archive)
 		error("[AquatorStream::initStream] Error opening aquator channel (%s)", filename.c_str());
 

@@ -23,6 +23,7 @@
 
 #include "ring/base/application.h"
 #include "ring/base/saveload.h"
+#include "ring/base/timer.h"
 
 #ifdef ENABLE_FAUST
 #include "ring/game/faust/faust_application.h"
@@ -58,34 +59,21 @@
 namespace Ring {
 
 RingEngine::RingEngine(OSystem *syst, const RingGameDescription *gd) :
-	Engine(syst), _gameDescription(gd), _debugger(nullptr), _random("ring"),
+	Engine(syst), _gameDescription(gd), _random("ring"),
 	_application(nullptr), _mouseButtonPressed(false) , _flag(true) {
 
 	// Adding the default directories
-	const Common::FSNode gameDataDir(ConfMan.get("path"));
+	const Common::FSNode gameDataDir(ConfMan.getPath("path"));
 
 	// Add the game path to the directory search list.
 	// ScummVM defaults to 4, we needs 5
-	SearchMan.remove(gameDataDir.getPath());
-	SearchMan.addDirectory(gameDataDir.getPath(), gameDataDir, 0, 5);
-
-	// Initialize the custom debug levels
-	DebugMan.addDebugChannel(kRingDebugAll, "Everything", "Debug everything");
-	DebugMan.addDebugChannel(kRingDebugGraphics, "Graphics", "Debug graphics & video playback");
-	DebugMan.addDebugChannel(kRingDebugResource, "Resource", "Debug resource management");
-	DebugMan.addDebugChannel(kRingDebugSound, "Sound", "Debug sound playback");
-	DebugMan.addDebugChannel(kRingDebugSavegame, "Savegame", "Debug savegame");
-	DebugMan.addDebugChannel(kRingDebugLogic, "Logic", "Debug logic");
-	DebugMan.addDebugChannel(kRingDebugMovie, "Movie", "Movie decoding");
-	DebugMan.addDebugChannel(kRingDebugUnknown, "Unknown", "Debug unknown data");
+	SearchMan.remove(gameDataDir.getPath().toString());
+	SearchMan.addDirectory(gameDataDir, 0, 5);
 }
 
 RingEngine::~RingEngine() {
 	// Delete application
 	delete _application;
-
-	// Delete the remaining objects
-	delete _debugger;
 
 	// Zero passed pointers
 	_gameDescription = nullptr;
@@ -101,7 +89,7 @@ Common::Error RingEngine::run() {
 		return Common::kUnsupportedColorMode;
 
 	// Create debugger. It requires GFX to be initialized
-	_debugger = new Debugger(this);
+	setDebugger(new Debugger(this));
 
 	// Create application
 	switch (_gameDescription->gameType) {
@@ -167,34 +155,25 @@ Common::Error RingEngine::run() {
 
 	while (!shouldQuit()) {
 		// Execute stored commands
-		if (_debugger->hasCommand()) {
-			_debugger->callCommand();
+		if (getRingDebugger()->hasCommand()) {
+			getRingDebugger()->callCommand();
 
 			// re-attach the debugger
-			_debugger->attach();
+			getRingDebugger()->attach();
 		}
 
 		// Show the debugger if required
-		_debugger->onFrame();
+		getRingDebugger()->onFrame();
 
 		// Handle input
 		Common::Event ev;
 		while (_eventMan->pollEvent(ev)) {
 			switch (ev.type) {
 
-			case Common::EVENT_CUSTOM:
-				if (ev.custom.message == MESSAGE_TIMER) {
-					TimerId timerId = (TimerId)ev.custom.param1;
-
-					if (_application->hasTimer(timerId))
-						_application->onTimer(timerId);
-				}
-				break;
-
 			case Common::EVENT_KEYDOWN:
 				// CTRL-D: Attach the debugger
 				if ((ev.kbd.flags & Common::KBD_CTRL) && ev.kbd.keycode == Common::KEYCODE_d)
-					_debugger->attach();
+					getRingDebugger()->attach();
 
 				_application->onKeyDown(ev);
 				break;
@@ -231,6 +210,14 @@ Common::Error RingEngine::run() {
 			default:
 				break;
 			}
+		}
+
+		// Fire due timers on the main thread
+		Common::Array<TimerId> dueTimers;
+		_application->getTimerHandler()->collectDue(_system->getMillis(), dueTimers);
+		for (uint i = 0; i < dueTimers.size(); i++) {
+			if (_application->hasTimer(dueTimers[i]))
+				_application->onTimer(dueTimers[i]);
 		}
 
 		// Draw screen, update state and play sounds
@@ -311,81 +298,6 @@ void RingEngine::syncSoundSettings() {
 		return;
 
 	_application->syncSoundSettings();
-}
-
-SaveStateList RingEngine::listSaves(const char *target) const {
-	const char* gameid = gameIdFromTarget(target);
-
-	Common::SaveFileManager *saveFileMan = g_system->getSavefileManager();
-	Common::StringArray filenames;
-	Common::String pattern = Common::String::format("%s.s\?\?", gameid);
-
-	filenames = saveFileMan->listSavefiles(pattern);
-	sort(filenames.begin(), filenames.end());	// Sort (hopefully ensuring we are sorted numerically..)
-
-	SaveStateList saveList;
-	for (Common::StringArray::const_iterator file = filenames.begin(); file != filenames.end(); ++file) {
-		// Obtain the last 2 digits of the filename, since they correspond to the save slot
-		int slotNum = atoi(file->c_str() + file->size() - 2);
-
-		if (slotNum >= 0 && slotNum <= 99) {
-			Common::InSaveFile *in = saveFileMan->openForLoading(*file);
-			if (in) {
-				Ring::SaveManager::SavegameHeader header;
-				if (Ring::SaveManager::readSavegameHeader(in, header)) {
-					saveList.push_back(SaveStateDescriptor(slotNum, header.name));
-					if (header.thumbnail) {
-						header.thumbnail->free();
-						delete header.thumbnail;
-					}
-				}
-				delete in;
-			}
-		}
-	}
-
-	return saveList;
-}
-
-void RingEngine::removeSaveState(const char *target, int slot) const {
-	g_system->getSavefileManager()->removeSavefile(Ring::SaveManager::getSavegameFile(gameIdFromTarget(target), slot));
-}
-
-SaveStateDescriptor RingEngine::querySaveMetaInfos(const char *target, int slot) const {
-	Common::InSaveFile *f = g_system->getSavefileManager()->openForLoading(Ring::SaveManager::getSavegameFile(gameIdFromTarget(target), slot));
-	assert(f);
-
-	Ring::SaveManager::SavegameHeader header;
-	Ring::SaveManager::readSavegameHeader(f, header);
-	delete f;
-
-	// Create the return descriptor
-	SaveStateDescriptor desc(slot, header.name);
-	desc.setDeletableFlag(true);
-	desc.setWriteProtectedFlag(false);
-	desc.setThumbnail(header.thumbnail);
-
-	int day = (header.date >> 24) & 0xFF;
-	int month = (header.date >> 16) & 0xFF;
-	int year = header.date & 0xFFFF;
-	desc.setSaveDate(year, month, day);
-
-	int hour = (header.time >> 8) & 0xFF;
-	int minutes = header.time & 0xFF;
-	desc.setSaveTime(hour, minutes);
-
-	desc.setPlayTime(header.playtime * 1000);
-
-	return desc;
-}
-
-const char *RingEngine::gameIdFromTarget(const char *target) {
-	assert(strlen(target) < 50);
-
-	// Get the game id from the target: remove everything after the first -
-	char *tok = strtok(const_cast<char *>(target), "-");
-
-	return Common::String::format("%s", (tok == nullptr) ? target : tok).c_str();
 }
 
 #pragma region Floating point

@@ -27,7 +27,6 @@
 #include "ring/ring.h"
 #include "ring/helpers.h"
 
-#include "common/timer.h"
 
 namespace Ring {
 
@@ -36,18 +35,15 @@ namespace Ring {
 Timer::Timer(TimerId timerId, uint32 elapseTime): BaseObject(timerId), _elapseTime(elapseTime) {
 	_fired = 0;
 	_tickStart = g_system->getMillis();
-	_reference = Common::String::format("Ring Timer %d", _id);
 
 	start();
 }
 
 Timer::~Timer() {
-	g_system->getTimerManager()->removeTimerProc(_reference);
 }
 
 void Timer::start() {
-	if (!g_system->getTimerManager()->installTimerProc(&handler, _elapseTime, this, _reference, true))
-		error("[Timer::start] Cannot start timer %d", _id);
+	_lastFire = g_system->getMillis();
 }
 
 // Serializable
@@ -56,20 +52,6 @@ void Timer::saveLoadWithSerializer(Common::Serializer &s) {
 	s.syncAsUint32LE(_tickStart);
 	s.syncAsUint32LE(_fired);
 	s.syncAsUint32LE(_elapseTime);
-}
-
-void Timer::handler(void *refCon) {
-	((Timer *)refCon)->handle();
-}
-
-void Timer::handle() const {
-	// Setup our timer message and inject into the queue
-	Common::Event evt;
-	evt.type = Common::EVENT_CUSTOM;
-	evt.custom.message = MESSAGE_TIMER;
-	evt.custom.param1  = _id;
-
-	g_system->getEventManager()->pushEvent(evt);
 }
 
 #pragma endregion
@@ -110,6 +92,16 @@ void TimerHandler::incrementFiredCount(TimerId id) {
 		return;
 
 	_timers.get(id)->incrementFiredCount();
+}
+
+void TimerHandler::collectDue(uint32 now, Common::Array<TimerId> &due) {
+	// Like WM_TIMER, a late timer fires once rather than catching up
+	for (uint32 i = 0; i < _timers.size(); i++) {
+		if (_timers[i]->isDue(now)) {
+			_timers[i]->markFired(now);
+			due.push_back((TimerId)_timers[i]->getId());
+		}
+	}
 }
 
 #pragma region Serializable

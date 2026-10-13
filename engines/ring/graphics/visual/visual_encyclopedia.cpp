@@ -691,7 +691,7 @@ bool VisualObjectEncyclopedia::load() {
 
 bool VisualObjectEncyclopedia::loadEntries(const Common::String &filename) {
 	// Open a stream to the OUT file
-	Common::SeekableReadStream *archive = SearchMan.createReadStreamForMember(filename);
+	Common::SeekableReadStream *archive = SearchMan.createReadStreamForMember(Common::Path(filename, '/'));
 	if (!archive)
 		error("[VisualObjectEncyclopedia::loadEntries] Error opening encyclopedia file (%s)", filename.c_str());
 

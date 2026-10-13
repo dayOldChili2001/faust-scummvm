@@ -56,7 +56,7 @@ Cinematic1::~Cinematic1() {
 }
 
 bool Cinematic1::init(Common::String filename) {
-	_stream = SearchMan.createReadStreamForMember(filename);
+	_stream = SearchMan.createReadStreamForMember(Common::Path(filename, '/'));
 	if (!_stream || _stream->err()) {
 		warning("[Cinematic1::init] Error opening file (%s)", filename.c_str());
 		return false;

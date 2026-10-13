@@ -648,7 +648,7 @@ ObjectHandler::~ObjectHandler() {
 
 void ObjectHandler::addFromFile(Common::String filename, Common::String language) {
 	// Open a stream to the configuration file
-	Common::SeekableReadStream *archive = SearchMan.createReadStreamForMember(filename);
+	Common::SeekableReadStream *archive = SearchMan.createReadStreamForMember(Common::Path(filename, '/'));
 	if (!archive)
 		error("[ObjectHandler::addFromFile] Error opening objects file (%s)", filename.c_str());
 

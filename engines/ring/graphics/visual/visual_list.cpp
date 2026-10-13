@@ -633,7 +633,7 @@ void VisualObjectList::add(ObjectId objectId) {
 	} else {
 		// Compute path
 		Common::String path = Common::String::format("%s%s.%s", _iconPath.c_str(), object->getName().c_str(), Application::getFileExtension(_imageType).c_str());
-		if (!Common::File::exists(path))
+		if (!Common::File::exists(Common::Path(path, '/')))
 			path = "dummyLS.bmp";
 
 		image = new ImageHandle(path, Common::Point(0, 0), true, kZoneNone, kLoadFromDisk, _imageType, kArchiveFile);

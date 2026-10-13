@@ -51,7 +51,7 @@ bool CompressedStream::init(Common::String filename, byte type, uint32 /* unused
 }
 
 bool CompressedStream::initBuffer(Common::String filename, byte type) {
-	_fileStream = SearchMan.createReadStreamForMember(filename);
+	_fileStream = SearchMan.createReadStreamForMember(Common::Path(filename, '/'));
 	if (!_fileStream) {
 		warning("[CompressedStream::init] Error opening file (%s)", filename.c_str());
 		return false;

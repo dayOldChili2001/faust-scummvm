@@ -149,7 +149,7 @@ CompressedSound::CompressedSound() {
 }
 
 bool CompressedSound::init(const Common::String &path) {
-	_stream = SearchMan.createReadStreamForMember(path);
+	_stream = SearchMan.createReadStreamForMember(Common::Path(path, '/'));
 	if (!_stream) {
 		warning("[CompressedSound::init] Error opening file (%s)", path.c_str());
 		return false;

@@ -43,21 +43,21 @@ uint32 Cinematic::read(void *dataPtr, uint32 dataSize) {
 
 #pragma region SeekableReadStream
 
-int32 Cinematic::pos() const {
+int64 Cinematic::pos() const {
 	if (!_stream)
 		error("[Cinematic::pos] Not initialized properly!");
 
 	return _stream->pos();
 }
 
-int32 Cinematic::size() const {
+int64 Cinematic::size() const {
 	if (!_stream)
 		error("[Cinematic::size] Not initialized properly!");
 
 	return _stream->size();
 }
 
-bool Cinematic::seek(int32 offset, int whence) {
+bool Cinematic::seek(int64 offset, int whence) {
 	if (!_stream)
 		error("[Cinematic::seek] Not initialized properly!");
 

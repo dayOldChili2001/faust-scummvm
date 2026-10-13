@@ -21,6 +21,8 @@
 
 #include "ring/base/saveload.h"
 
+#include "common/config-manager.h"
+
 #include "ring/base/application.h"
 #include "ring/base/bag.h"
 #include "ring/base/timer.h"
@@ -318,7 +320,7 @@ const char *SaveManager::getSavegameFile(const char *gameid, int slot) {
 	static char buffer[54];
 	assert(strlen(gameid) < 50);
 
-	sprintf(buffer, "%s.s%02d", gameid, slot);
+	Common::sprintf_s(buffer, "%s.s%02d", gameid, slot);
 	return buffer;
 }
 
@@ -329,7 +331,7 @@ Common::String SaveManager::getTimerFile(Common::String zone, uint32 slot) {
 uint32 SaveManager::getNextSlot() const {
 	RingEngine *engine = (RingEngine *)g_engine;
 
-	return engine->listSaves(engine->getGameDescription()->desc.gameId).size() - 1;
+	return engine->getMetaEngine()->listSaves(ConfMan.getActiveDomainName().c_str()).size() - 1;
 }
 
 } // End of namespace Ring

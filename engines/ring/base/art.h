@@ -42,10 +42,10 @@ public:
 	void init(const Common::String &path, ZoneId zone, LoadFrom loadFrom);
 
 	// Archive
-	bool hasFile(const Common::String &name) const override;
+	bool hasFile(const Common::Path &path) const override;
 	int listMembers(Common::ArchiveMemberList &list) const override;
-	const Common::ArchiveMemberPtr getMember(const Common::String &name) const override;
-	Common::SeekableReadStream *createReadStreamForMember(const Common::String &name) const override;
+	const Common::ArchiveMemberPtr getMember(const Common::Path &path) const override;
+	Common::SeekableReadStream *createReadStreamForMember(const Common::Path &path) const override;
 
 	// Accessors
 	LoadFrom getLoadFrom() { return _loadFrom; }
@@ -81,6 +81,9 @@ private:
 	};
 
 	typedef Common::HashMap<Common::String, Record> RecordMap;
+
+	// Records are keyed by lowercase, '/'-separated names
+	static Common::String toKey(const Common::Path &path);
 
 	RecordMap _records;             ///< List of files
 	Common::String _path;           ///< Path of the archive

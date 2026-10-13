@@ -557,7 +557,7 @@ void Bag::add(ObjectId objectId) {
 		if (_archiveType == kArchiveFile) {
 			filename = Common::String::format("LSTICON/%s.tga", object->getName().c_str());
 
-			if (!Common::File::exists(filename)) {
+			if (!Common::File::exists(Common::Path(filename, '/'))) {
 				if (object->getName().empty()) {
 					filename = "dummy.tga";
 				} else {

@@ -146,7 +146,7 @@ Common::String Dialog::getLine2(uint32 index) {
 
 void Dialog::readLyrics(Common::String filename) {
 	// Open a stream to the dialog file
-	Common::SeekableReadStream *archive = SearchMan.createReadStreamForMember(filename);
+	Common::SeekableReadStream *archive = SearchMan.createReadStreamForMember(Common::Path(filename, '/'));
 	if (!archive)
 		error("[Dialog::readLyrics] Error opening dialog file (%s)", filename.c_str());
 
@@ -219,11 +219,11 @@ void Dialog::parseLyrics(Common::String line) {
 }
 
 bool Dialog::readAnimation(Common::String filename) {
-	if (!Common::File::exists(filename))
+	if (!Common::File::exists(Common::Path(filename, '/')))
 		return false;
 
 	// Open a stream to the dialog file
-	Common::SeekableReadStream *archive = SearchMan.createReadStreamForMember(filename);
+	Common::SeekableReadStream *archive = SearchMan.createReadStreamForMember(Common::Path(filename, '/'));
 	if (!archive)
 		error("[Dialog::readAnimation] Error opening dialog animation file (%s)", filename.c_str());
 

@@ -64,7 +64,7 @@ bool Cinematic2::init(Common::String filename, ArchiveType type, ZoneId zone, Lo
 		return false;
 
 	case kArchiveFile:
-		_stream = SearchMan.createReadStreamForMember(filename);
+		_stream = SearchMan.createReadStreamForMember(Common::Path(filename, '/'));
 		break;
 
 	case kArchiveArt:

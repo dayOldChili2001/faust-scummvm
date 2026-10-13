@@ -23,6 +23,7 @@
 #define RING_H
 
 #include "ring/debug.h"
+#include "ring/detection.h"
 
 #include "common/rect.h"
 #include "common/random.h"
@@ -55,37 +56,6 @@
  */
 namespace Ring {
 
-struct RingGameDescription {
-	ADGameDescription desc;
-
-	int gameType;
-	uint32 features;
-};
-
-enum RingGameType {
-	GameTypePilgrim,
-	GameTypeRing,
-	GameTypeFaust,
-	GameTypePompeii,
-	GameTypePilgrim2,
-	GameTypePilgrim3,
-	GameTypeJerusalem
-};
-
-// Available languages
-enum {
-	LANG_ENG = 1 << 0,
-	LANG_FRA = 1 << 1,
-	LANG_GER = 1 << 2,
-	LANG_GRE = 1 << 3,
-	LANG_HEB = 1 << 4,
-	LANG_HOL = 1 << 5,
-	LANG_ITA = 1 << 6,
-	LANG_SLO = 1 << 7,
-	LANG_SPA = 1 << 8,
-	LANG_SWE = 1 << 9
-};
-
 // Floating point conversion
 float convertIEEEFloat(uint32 data);
 uint32 convertIEEEFloat(float value);
@@ -97,7 +67,6 @@ class RingEngine : public Engine {
 protected:
 	// Engine APIs
 	Common::Error run() override;
-	virtual Debugger *getDebugger() override { return _debugger; }
 
 public:
 	RingEngine(OSystem *syst, const RingGameDescription *gd);
@@ -115,12 +84,9 @@ public:
 	RingGameType getGameType() { return (RingGameType)_gameDescription->gameType; }
 	bool isMultiLanguage() const;
 
-	// Enhanced save/load
-	virtual SaveStateList listSaves(const char *target) const;
-	virtual void removeSaveState(const char *target, int slot) const;
-	virtual SaveStateDescriptor querySaveMetaInfos(const char *target, int slot) const;
 
 	// Accessors and helpers
+	Debugger *getRingDebugger() { return (Debugger *)getDebugger(); }
 	Application *getApplication() { return _application; }
 	Common::RandomSource getRandom() const {return _random; }
 	bool getFlag() { return _flag; }
@@ -133,7 +99,6 @@ private:
 	Graphics::PixelFormat _pixelFormat;
 
 	// Misc
-	Debugger *_debugger;
 	Common::RandomSource _random;
 
 	// Game
@@ -143,8 +108,6 @@ private:
 	bool _mouseButtonPressed;
 	Common::Point _coordinates;
 	bool _flag;
-
-	static const char *gameIdFromTarget(const char *target);
 };
 
 } // End of namespace Ring

@@ -69,22 +69,22 @@ bool Movie::init(const Common::String &path, Common::String filename, const Comm
 
 	// Find the proper path to the movie file
 	Common::String filePath = Common::String::format("%s%s%s", path.c_str(), filename.c_str(), ".cnm");
-	if (Common::File::exists(filePath))
+	if (Common::File::exists(Common::Path(filePath, '/')))
 		goto load_movie;
 
 	// Try with language subfolder
 	filePath = Common::String::format("%s%s/%s%s", path.c_str(), languageFolder.c_str(), filename.c_str(), ".cnm");
-	if (Common::File::exists(filePath))
+	if (Common::File::exists(Common::Path(filePath, '/')))
 		goto load_movie;
 
 	// Try with .ci2 suffix
 	filePath = Common::String::format("%s%s%s", path.c_str(), filename.c_str(), ".ci2");
-	if (Common::File::exists(filePath))
+	if (Common::File::exists(Common::Path(filePath, '/')))
 		goto load_movie;
 
 	// Try with .ci2 suffix and language subfolder
 	filePath = Common::String::format("%s%s/%s%s", path.c_str(), languageFolder.c_str(), filename.c_str(), ".ci2");
-	if (Common::File::exists(filePath))
+	if (Common::File::exists(Common::Path(filePath, '/')))
 		goto load_movie;
 
 	// Cannot find movie
@@ -130,7 +130,7 @@ load_movie:
 
 	// Init dialog
 	Common::String dialogPath = Common::String::format("DATA/%s/DIA/%s/%s", getApp()->getCurrentZoneFolder().c_str(), getApp()->getLanguageFolder().c_str(), filename.c_str());
-	if (!Common::File::exists(dialogPath)) {
+	if (!Common::File::exists(Common::Path(dialogPath, '/'))) {
 		_hasDialog = false;
 		return true;
 	}

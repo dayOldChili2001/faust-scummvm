@@ -57,7 +57,7 @@ Font::Font(FontId id, Common::String filename, Common::String facename, uint32 h
 
 	// Create font object
 	_font = new Graphics::WinFont();
-	if (!((Graphics::WinFont *)_font)->loadFromFON(filename, Graphics::WinFontDirEntry(_description.facename, (uint16)_description.height)))
+	if (!((Graphics::WinFont *)_font)->loadFromFON(Common::Path(filename, '/'), Graphics::WinFontDirEntry(_description.facename, (uint16)_description.height)))
 		error("Unable to load font %s, face %s size %d", filename.c_str(), _description.facename.c_str(), _description.height);
 }
 

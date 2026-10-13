@@ -361,7 +361,7 @@ void Application::setupZone(ZoneId zone, SetupType type) {
 		// The original checks for the correct CD defined in cd.ini,
 		// instead we check that the zone archive has been copied properly
 		Common::ArchiveMemberList list;
-		if (SearchMan.listMatchingMembers(list, Common::String::format("DATA/%s/*", getZoneFolder(zone).c_str())))
+		if (SearchMan.listMatchingMembers(list, Common::Path(Common::String::format("DATA/%s/*", getZoneFolder(zone).c_str()), '/')))
 			hasData = true;
 	}
 
@@ -2028,7 +2028,7 @@ void Application::rotationAdd(Id rotationId, Common::String name, byte a3, uint3
 	Common::String path = Common::String::format("DATA/NODE/%s.%s", name.c_str(), _isRotationCompressed ? "aqc" : "aqi");
 
 	// Check for single node file
-	if (_field_5E && !Common::File::exists(path))
+	if (_field_5E && !Common::File::exists(Common::Path(path, '/')))
 		error("[Application::rotationAdd] Node file doesn't exist (%s)", path.c_str());
 
 	// Check for node channel files
@@ -2036,7 +2036,7 @@ void Application::rotationAdd(Id rotationId, Common::String name, byte a3, uint3
 		for (uint i = 0; i < nodeCount; i++) {
 			Common::String nodePath = Common::String::format("DATA/NODE/%s_%03d.aqc", name.c_str(), i);
 
-			if (!Common::File::exists(nodePath))
+			if (!Common::File::exists(Common::Path(nodePath, '/')))
 				error("[Application::rotationAdd] Channel node file doesn't exist (%s)", nodePath.c_str());
 		}
 	}
@@ -2399,7 +2399,7 @@ Common::String Application::getSoundPath(const Common::String &filename, SoundTy
 
 	// Check if file exists (and try the 3 different extensions)
 	do {
-		if (Common::File::exists(path))
+		if (Common::File::exists(Common::Path(path, '/')))
 			break;
 
 		if (!path.contains('.'))
@@ -2408,19 +2408,19 @@ Common::String Application::getSoundPath(const Common::String &filename, SoundTy
 		// WAS
 		path.deleteLastChar();
 		path += "s";
-		if (Common::File::exists(path))
+		if (Common::File::exists(Common::Path(path, '/')))
 			break;
 
 		// WAC
 		path.deleteLastChar();
 		path += "c";
-		if (Common::File::exists(path))
+		if (Common::File::exists(Common::Path(path, '/')))
 			break;
 
 		// WAV
 		path.deleteLastChar();
 		path += "v";
-		if (Common::File::exists(path))
+		if (Common::File::exists(Common::Path(path, '/')))
 			break;
 
 		// No file found

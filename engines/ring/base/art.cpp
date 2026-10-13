@@ -46,7 +46,7 @@ void Art::init(const Common::String &path, ZoneId zone, LoadFrom loadFrom) {
 	_loadFrom = loadFrom;
 
 	// Open a stream to the archive
-	Common::SeekableReadStream *archive = SearchMan.createReadStreamForMember(path);
+	Common::SeekableReadStream *archive = SearchMan.createReadStreamForMember(Common::Path(path, '/'));
 	if (!archive)
 		error("[Art::init] Error opening file: %s", path.c_str());
 
@@ -87,39 +87,42 @@ void Art::init(const Common::String &path, ZoneId zone, LoadFrom loadFrom) {
 	delete archive;
 }
 
-bool Art::hasFile(const Common::String &name) const {
-	return (_records.find(name) != _records.end());
+Common::String Art::toKey(const Common::Path &path) {
+	Common::String key = path.toString('/');
+	key.toLowercase();
+
+	return key;
+}
+
+bool Art::hasFile(const Common::Path &path) const {
+	return _records.contains(toKey(path));
 }
 
 int Art::listMembers(Common::ArchiveMemberList &list) const {
 	int numMembers = 0;
 
 	for (RecordMap::const_iterator i = _records.begin(); i != _records.end(); ++i) {
-		list.push_back(Common::ArchiveMemberList::value_type(new Common::GenericArchiveMember(i->_key, this)));
+		list.push_back(Common::ArchiveMemberList::value_type(new Common::GenericArchiveMember(Common::Path(i->_key, '/'), *this)));
 		numMembers++;
 	}
 
 	return numMembers;
 }
 
-const Common::ArchiveMemberPtr Art::getMember(const Common::String &name) const {
-	if (!hasFile(name))
+const Common::ArchiveMemberPtr Art::getMember(const Common::Path &path) const {
+	if (!hasFile(path))
 		return Common::ArchiveMemberPtr();
 
-	return Common::ArchiveMemberPtr(new Common::GenericArchiveMember(name, this));
+	return Common::ArchiveMemberPtr(new Common::GenericArchiveMember(path, *this));
 }
 
-Common::SeekableReadStream *Art::createReadStreamForMember(const Common::String &name) const {
-	// Convert to lowercase for match
-	Common::String filename(name);
-	filename.toLowercase();
-
-	RecordMap::const_iterator fDesc = _records.find(filename);
+Common::SeekableReadStream *Art::createReadStreamForMember(const Common::Path &path) const {
+	RecordMap::const_iterator fDesc = _records.find(toKey(path));
 	if (fDesc == _records.end())
 		return nullptr;
 
 	Common::File *archive = new Common::File();
-	if (!archive->open(_path)) {
+	if (!archive->open(Common::Path(_path, '/'))) {
 		delete archive;
 		return nullptr;
 	}
@@ -202,7 +205,10 @@ Common::SeekableReadStream *ArtHandler::get(Common::String filename, ZoneId zone
 		return nullptr;
 	}
 
-	return _arts[index]->createReadStreamForMember(filename);
+	// Game data uses Windows path separators
+	filename.replace('\\', '/');
+
+	return _arts[index]->createReadStreamForMember(Common::Path(filename, '/'));
 }
 
 bool ArtHandler::isPresent(ZoneId zone, LoadFrom loadFrom) {

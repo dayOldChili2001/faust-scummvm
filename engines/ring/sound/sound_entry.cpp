@@ -188,7 +188,7 @@ void SoundEntryStream::initSoundBuffer(const Common::String &path, int32 soundCh
 	// Handle uncompressed wav file
 	SAFE_DELETE(_audioStream);
 
-	Common::SeekableReadStream *stream = SearchMan.createReadStreamForMember(path);
+	Common::SeekableReadStream *stream = SearchMan.createReadStreamForMember(Common::Path(path, '/'));
 	if (!stream)
 		error("[SoundEntryStream::initSoundBuffer] Cannot open stream to file (%s)", path.c_str());
 
@@ -314,7 +314,7 @@ void SoundEntryData::initSoundBuffer(const Common::String &path) {
 		delete _audioStream;
 
 	// Open stream to file
-	Common::SeekableReadStream *stream = SearchMan.createReadStreamForMember(path);
+	Common::SeekableReadStream *stream = SearchMan.createReadStreamForMember(Common::Path(path, '/'));
 	if (!stream)
 		error("[SoundEntryData::initSoundBuffer] Cannot open stream to file (%s)", path.c_str());
 

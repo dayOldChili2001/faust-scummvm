@@ -36,7 +36,7 @@ bool ImageLoaderBMP::load(ImageSurface *image, ArchiveType, ZoneId, LoadFrom, Dr
 		error("[ImageLoaderBMP::load] Invalid image pointer!");
 
 	// Get image stream
-	Common::SeekableReadStream *stream = SearchMan.createReadStreamForMember(image->getName());
+	Common::SeekableReadStream *stream = SearchMan.createReadStreamForMember(Common::Path(image->getName(), '/'));
 	if (!stream) {
 		warning("[ImageLoaderBMP::load] Cannot load image (%s)", image->getName().c_str());
 		return false;
