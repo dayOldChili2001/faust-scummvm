@@ -96,8 +96,9 @@ load_movie:
 	if (filePath.hasSuffix("cnm")) {
 		_image = new ImageLoaderCIN();
 	} else {
-		_image = new ImageLoaderCI2();
-		_isCI2 = true;
+		// TODO: The CI2 decoder (Cinematic2::decompressTControl / decompressSeq) is not implemented yet
+		warning("[Movie::init] CI2 movies are not supported yet, skipping %s", filePath.c_str());
+		return false;
 	}
 
 	if (!_image->init(filePath, kArchiveFile, kZoneNone, kLoadFromCd))

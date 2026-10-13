@@ -235,13 +235,13 @@ void ApplicationFaust::initBag() {
 void ApplicationFaust::showStartupScreen() {
 	setCurrentZone(kZoneSY);
 
-	playMovie("1003");
+	playMovie("logo");
 	fadeOut(15, Color(0, 0, 0), 0);
 
-	playMovie("1004");
+	playMovie("e00m01");
 	fadeOut(15, Color(0, 0, 0), 0);
 
-	playMovie("1005");
+	playMovie("e00m03");
 	fadeOut(15, Color(0, 0, 0), 0);
 }
 
@@ -444,7 +444,7 @@ void ApplicationFaust::showMenu(ZoneId zone, MenuAction menuAction) {
 
 		case kMenuAction1:
 		case kMenuAction2:
-			playMovie("1002");
+			playMovie("Surogat");
 			break;
 		}
 		break;

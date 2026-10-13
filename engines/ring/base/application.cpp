@@ -54,7 +54,9 @@
 #include "ring/helpers.h"
 #include "ring/ring.h"
 
+#include "common/config-manager.h"
 #include "common/file.h"
+#include "common/fs.h"
 #include "common/tokenizer.h"
 
 namespace Ring {
@@ -269,9 +271,15 @@ void Application::loadConfiguration() {
 			// Handle tokens
 			if (Common::String(token) == "CDPATH:") {
 
-				// TODO: Show a proper message box to explain that we need a full DVD copy and not an existing installation
-				if (Common::String(val) != "CDROM")
-					error("[Application::loadConfiguration] Disk installation detected! We need full DVD copy of the game");
+				// A full DVD copy uses "CDROM". Otherwise accept a CDPATH relative to the
+				// game directory holding the full disc contents (e.g. "CD") and search it first.
+				if (Common::String(val) != "CDROM") {
+					Common::FSNode cdDir = Common::FSNode(ConfMan.getPath("path")).getChild(val);
+					if (!cdDir.isDirectory())
+						error("[Application::loadConfiguration] Disk installation detected! We need full DVD copy of the game (CDPATH: %s not found)", val);
+
+					SearchMan.addDirectory(cdDir, 1, 5);
+				}
 
 				_configuration.runningFromDisk = false;
 			}
@@ -885,11 +893,22 @@ void Application::fadeOut(uint32 frameCount, Color colorTo, uint32 ticksWait) {
 		error("[Application::fadeOut] Screen manager not initialized properly");
 
 	// Get screen image
-	byte bpp = _screenManager->getSurface()->format.bytesPerPixel;
+	Graphics::Surface *screen = _screenManager->getSurface();
 	ImageSurface *image = new ImageSurface();
-	image->create((byte)(bpp * 8), 2, 640, 480);
+	image->create((byte)(screen->format.bytesPerPixel * 8), 2, 640, 480);
 	_screenManager->copySurface(image);
-	byte *buffer = (byte *)image->getSurface()->getPixels();
+	Graphics::Surface *surface = image->getSurface();
+	const Graphics::PixelFormat &format = surface->format;
+
+	// Keep the source colors so each frame is blended from the original image
+	byte *source = (byte *)malloc(640 * 480 * 3);
+	if (!source)
+		error("[Application::fadeOut] Cannot allocate buffer for fade");
+
+	byte *src = source;
+	for (int16 y = 0; y < 480; y++)
+		for (int16 x = 0; x < 640; x++, src += 3)
+			format.colorToRGB(surface->getPixel(x, y), src[0], src[1], src[2]);
 
 	// Setup animation
 	Animation *animation = new Animation();
@@ -897,20 +916,23 @@ void Application::fadeOut(uint32 frameCount, Color colorTo, uint32 ticksWait) {
 	animation->setField21(2);
 	animation->setTicks(g_system->getMillis());
 
-	// Setup difference image
-	byte *diffBuffer = (byte *)malloc(640 * 480 * bpp);
-	if (!diffBuffer)
-		error("[Application::fadeOut] Cannot allocate buffer for fade");
-
-	error("[Application::fadeOut] Not implemented");
-
 	// Fade out image
 	if (frameCount >= 1) {
 		uint32 activeFrame = 1;
 		bool stop = false;
 		do {
+			src = source;
+			for (int16 y = 0; y < 480; y++) {
+				for (int16 x = 0; x < 640; x++, src += 3) {
+					byte r = (byte)(src[0] + ((int32)colorTo.red   - src[0]) * (int32)activeFrame / (int32)frameCount);
+					byte g = (byte)(src[1] + ((int32)colorTo.green - src[1]) * (int32)activeFrame / (int32)frameCount);
+					byte b = (byte)(src[2] + ((int32)colorTo.blue  - src[2]) * (int32)activeFrame / (int32)frameCount);
+					surface->setPixel(x, y, format.RGBToColor(r, g, b));
+				}
+			}
 
-			error("[Application::fadeOut] Not implemented");
+			_screenManager->drawAndUpdate(image);
+			g_system->updateScreen();
 
 			// Wait until next frame
 			while (animation->getCurrentFrame() == activeFrame && !stop)
@@ -919,19 +941,26 @@ void Application::fadeOut(uint32 frameCount, Color colorTo, uint32 ticksWait) {
 			if (stop)
 				break;
 
-			activeFrame = animation->getActiveFrame() + 1;
+			// The animation loops, so stop once the frame counter wraps around
+			uint32 nextFrame = animation->getActiveFrame() + 1;
+			if (nextFrame < activeFrame)
+				break;
+
+			activeFrame = nextFrame;
 
 		} while (activeFrame <= frameCount);
 	}
 
 	// Show final image
-	image->getSurface()->fillRect(Common::Rect(0, 0, 640, 480), colorTo.getColor());
+	surface->fillRect(Common::Rect(0, 0, 640, 480), format.RGBToColor((byte)colorTo.red, (byte)colorTo.green, (byte)colorTo.blue));
+	_screenManager->drawAndUpdate(image);
+	g_system->updateScreen();
 
 	// Wait for end of animation
 	waitForEscape(ticksWait);
 
 	// Cleanup
-	free(diffBuffer);
+	free(source);
 	delete animation;
 	delete image;
 }

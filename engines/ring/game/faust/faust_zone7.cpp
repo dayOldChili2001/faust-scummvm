@@ -46,9 +46,9 @@ void Zone7Faust::onInit() {
 	_app->puzzleAddBackgroundImage(kPuzzle49000, "a04s01n02p01.bmp", Common::Point(0, 16), true);
 	_app->puzzleAdd(kPuzzle49001);
 	_app->puzzleAddBackgroundImage(kPuzzle49001, "a04s02n01p02.bmp", Common::Point(0, 16), true);
-	_app->rotationAdd(41000, "1376", 0, 2);
-	_app->rotationAdd(41001, "1377", 0, 2);
-	_app->rotationAdd(41002, "1378", 0, 1);
+	_app->rotationAdd(41000, "A04S01N01R01", 0, 2);
+	_app->rotationAdd(41001, "A04S01N02R01", 0, 2);
+	_app->rotationAdd(41002, "A04S02N01R01", 0, 1);
 	_app->rotationAddMovabilityToRotation(41000, 41001, "", Common::Rect(3533, -150, 3600, 52), true, kCursorMove, 0);
 	_app->rotationSetMovabilityToRotation(41000, 0, 330.0f, 0.3f, 87.0f, 0.0f, 2, 0.0f, 0.3f, 87.0f);
 	_app->rotationAddMovabilityToRotation(41000, 41001, "", Common::Rect(0, -150, 138, 52), true, kCursorMove, 0);
@@ -99,20 +99,20 @@ void Zone7Faust::onInit() {
 	_app->varDefineByte(49002, 0);
 	_app->varDefineByte(49003, 0);
 	_app->varDefineByte(49004, 0);
-	_app->soundAdd(41001, kSoundTypeBackgroundMusic, "1379.wac", _app->getConfiguration().backgroundMusic.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(41001, kSoundTypeBackgroundMusic, "a04_BgrMus.wac", _app->getConfiguration().backgroundMusic.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
 	_app->soundSetVolume(41001, 90);
-	_app->soundAdd(41002, kSoundTypeAmbientMusic, "1380.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
-	_app->soundAdd(41003, kSoundTypeAmbientMusic, "1381.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
-	_app->soundAdd(41004, kSoundTypeAmbientMusic, "1382.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
-	_app->soundAdd(41005, kSoundTypeAmbientMusic, "1383.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
-	_app->soundAdd(41006, kSoundTypeAmbientMusic, "1384.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
-	_app->soundAdd(41007, kSoundTypeAmbientMusic, "1385.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
-	_app->soundAdd(41008, kSoundTypeAmbientMusic, "1386.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
-	_app->soundAdd(41009, kSoundTypeAmbientMusic, "1387.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
-	_app->soundAdd(41011, kSoundTypeAmbientMusic, "1388.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
-	_app->soundAdd(41012, kSoundTypeAmbientMusic, "1389.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
-	_app->soundAdd(41013, kSoundTypeAmbientMusic, "1390.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
-	_app->soundAdd(41000, kSoundTypeDialog, "1391.wac", _app->getConfiguration().dialog.loadFrom, 2, _app->getConfiguration().dialog.soundChunck);
+	_app->soundAdd(41002, kSoundTypeAmbientMusic, "04_crickets.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(41003, kSoundTypeAmbientMusic, "04_Horror1.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(41004, kSoundTypeAmbientMusic, "04_Horror2.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(41005, kSoundTypeAmbientMusic, "04_Horror3.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(41006, kSoundTypeAmbientMusic, "04_Horror4.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(41007, kSoundTypeAmbientMusic, "04_Horror5.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(41008, kSoundTypeAmbientMusic, "04_Laugh1.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(41009, kSoundTypeAmbientMusic, "04_Laugh2.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(41011, kSoundTypeAmbientMusic, "04_OUTIN_loop.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(41012, kSoundTypeAmbientMusic, "04_OUTIN_start.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(41013, kSoundTypeAmbientMusic, "04_IN_stop.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(41000, kSoundTypeDialog, "e01_15_pact.wac", _app->getConfiguration().dialog.loadFrom, 2, _app->getConfiguration().dialog.soundChunck);
 }
 
 void Zone7Faust::onSetup(SetupType type) {

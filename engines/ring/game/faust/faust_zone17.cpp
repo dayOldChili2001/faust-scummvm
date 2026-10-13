@@ -43,10 +43,10 @@ Zone17Faust::~Zone17Faust() {
 void Zone17Faust::onInit() {
 	_app->setCurrentZone(kZone17);
 
-	_app->rotationAdd(141101, "2178", 0, 0);
-	_app->rotationAdd(141102, "2179", 0, 1);
-	_app->rotationAdd(141201, "2180", 0, 0);
-	_app->rotationAdd(141202, "2181", 0, 2);
+	_app->rotationAdd(141101, "A14S01N01R01", 0, 0);
+	_app->rotationAdd(141102, "A14S01N02R01", 0, 1);
+	_app->rotationAdd(141201, "A14S02N01R01", 0, 0);
+	_app->rotationAdd(141202, "A14S02N02R01", 0, 2);
 	_app->rotationAddMovabilityToRotation(141101, 141102, "", Common::Rect(3127, -68, 3396, 143), true, kCursorMove, 0);
 	_app->rotationSetMovabilityToRotation(141101, 0, 280.0f, 0.0f, 87.0f, 0.0f, 2, 270.0f, 6.0f, 87.0f);
 	_app->rotationAddMovabilityToRotation(141102, 141201, "", Common::Rect(2626, -75, 2868, 368), false, kCursorMove, 0);
@@ -78,16 +78,16 @@ void Zone17Faust::onInit() {
 	_app->objectAddPresentation(kObjectMovieReel);
 	_app->objectPresentationAddImageToRotation(142001, 1, 141202, 1);
 	_app->objectPresentationShow(kObjectMovieReel, 0);
-	_app->soundAdd(142005, kSoundTypeAmbientEffect, "1326.wav", _app->getConfiguration().ambientEffect.loadFrom, 1, _app->getConfiguration().ambientEffect.soundChunck);
-	_app->soundAdd(141001, kSoundTypeAmbientMusic, "1792.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(142005, kSoundTypeAmbientEffect, "14_Projector.wav", _app->getConfiguration().ambientEffect.loadFrom, 1, _app->getConfiguration().ambientEffect.soundChunck);
+	_app->soundAdd(141001, kSoundTypeAmbientMusic, "11_ZUN_ambience_crickets.was", _app->getConfiguration().ambientEffect.loadFrom, 2, _app->getConfiguration().backgroundMusic.soundChunck);
 	_app->rotationAddAmbientSound(141101, 141001, 90, 0, 1, 1, 10);
 	_app->rotationAddAmbientSound(141102, 141001, 90, 0, 1, 1, 10);
-	_app->soundAdd(142002, kSoundTypeAmbientEffect, "1850.wav", _app->getConfiguration().ambientEffect.loadFrom, 1, _app->getConfiguration().backgroundMusic.soundChunck);
-	_app->soundAdd(142003, kSoundTypeAmbientEffect, "1853.wav", _app->getConfiguration().ambientEffect.loadFrom, 1, _app->getConfiguration().backgroundMusic.soundChunck);
-	_app->soundAdd(142004, kSoundTypeAmbientEffect, "1860.wav", _app->getConfiguration().ambientEffect.loadFrom, 1, _app->getConfiguration().backgroundMusic.soundChunck);
-	_app->soundAdd(143001, kSoundTypeDialog, "1339.wav", _app->getConfiguration().dialog.loadFrom, 2, _app->getConfiguration().dialog.soundChunck);
-	_app->soundAdd(143002, kSoundTypeDialog, "1340.wav", _app->getConfiguration().dialog.loadFrom, 2, _app->getConfiguration().dialog.soundChunck);
-	_app->soundAdd(143003, kSoundTypeDialog, "1341.wav", _app->getConfiguration().dialog.loadFrom, 2, _app->getConfiguration().dialog.soundChunck);
+	_app->soundAdd(142002, kSoundTypeAmbientEffect, "11_TPM_recorder_insert_reel.wav", _app->getConfiguration().ambientEffect.loadFrom, 1, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(142003, kSoundTypeAmbientEffect, "11_TPM_recorder_take_reel.wav", _app->getConfiguration().ambientEffect.loadFrom, 1, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(142004, kSoundTypeAmbientEffect, "11_Door_close.wav", _app->getConfiguration().ambientEffect.loadFrom, 1, _app->getConfiguration().backgroundMusic.soundChunck);
+	_app->soundAdd(143001, kSoundTypeDialog, "e05_18_1mef.wav", _app->getConfiguration().dialog.loadFrom, 2, _app->getConfiguration().dialog.soundChunck);
+	_app->soundAdd(143002, kSoundTypeDialog, "e05_18_2mef.wav", _app->getConfiguration().dialog.loadFrom, 2, _app->getConfiguration().dialog.soundChunck);
+	_app->soundAdd(143003, kSoundTypeDialog, "e05_18_3mef.wav", _app->getConfiguration().dialog.loadFrom, 2, _app->getConfiguration().dialog.soundChunck);
 }
 
 void Zone17Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {

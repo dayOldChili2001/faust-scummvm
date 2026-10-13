@@ -177,6 +177,10 @@ void SoundEntryStream::initSoundBuffer(const Common::String &path, int32 soundCh
 
 	// Handle compressed sounds
 	if (format != kSoundFormatWAV) {
+		// TODO: WAC/WAS decompression (CompressedSound*::decompress) and loadDataChunk are not implemented yet
+		warning("[SoundEntryStream::initSoundBuffer] Compressed sounds are not supported yet, skipping %s", path.c_str());
+		return;
+
 		_loader = new SoundLoader(format);
 
 		if (loadData(format, path, soundChunk))
