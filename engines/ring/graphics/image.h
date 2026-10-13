@@ -1,0 +1,140 @@
+/* ScummVM - Graphic Adventure Engine
+ *
+ * ScummVM is the legal property of its developers, whose names
+ * are too numerous to list here. Please refer to the COPYRIGHT
+ * file distributed with this source distribution.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
+
+#ifndef RING_IMAGE_H
+#define RING_IMAGE_H
+
+#include "ring/shared.h"
+
+#include "common/rect.h"
+
+#include "graphics/surface.h"
+
+namespace Ring {
+
+class AnimationImage;
+class ObjectPresentation;
+class ImageLoader;
+
+class ImageSurface {
+public:
+	ImageSurface();
+	virtual ~ImageSurface();
+
+	void create(byte depth, uint32 direction, uint32 width, uint32 height);
+	void destroy();
+
+	bool load(Common::String filename, ArchiveType type, ZoneId zone, LoadFrom loadFrom, DrawType drawType);
+	ImageSurface *zoom(float xZoom, float yZoom);
+
+	// Drawing
+	Common::Rect draw(Graphics::Surface *surface, const Common::Point &dest, bool useAlpha = false);
+	Common::Rect draw(Graphics::Surface *surface, const Common::Point &dest, uint32 srcWidth, uint32 srcHeight, int32 srcX, int32 offset, bool useAlpha = false);
+
+	static bool crossBlit(byte *dst, const byte *src, int dstpitch, int srcpitch, int w, int h, int offset, const Graphics::PixelFormat &dstFmt, const Graphics::PixelFormat &srcFmt, bool topDown = true, bool useAlpha = false);
+
+	// Accessors
+	byte getBPP()      { return _surface ? _surface->format.bytesPerPixel * 8: 0; }
+	uint32 getWidth()  { return _surface ? _surface->w : 0; }
+	uint32 getHeight() { return _surface ? _surface->h : 0; }
+
+	Common::String getName() { return _filename; }
+	void setName(Common::String name) { _filename = name; }
+
+	void setSurface(Graphics::Surface *surface);
+	Graphics::Surface *getSurface() { return _surface; }
+
+	bool isInitialized() { return _surface != nullptr; }
+
+protected:
+	//bool _loaded;
+	Common::String _filename;
+	Graphics::Surface *_surface;
+	//uint32 _direction;
+	//uint32 _offset;
+	//Common::Rect _rect;
+
+	ImageLoader *getLoader(Common::String filename, ArchiveType type) const;
+};
+
+class ImageHandle : public ImageSurface, public Common::Serializable {
+public:
+	ImageHandle();
+	ImageHandle(Common::String nameId, const Common::Point &point, bool active, ZoneId zone, LoadFrom loadFrom, ImageType imageType, ArchiveType archiveType);
+	ImageHandle(Common::String nameId, const Common::Point &point, bool active, DrawType drawType, uint32 priority, byte imageCount, ZoneId zone, LoadFrom loadFrom, ImageType imageType, ArchiveType archiveType);
+	~ImageHandle();
+
+	void loadImage();
+
+	// Serializable
+	void saveLoadWithSerializer(Common::Serializer &s) override;
+
+	// Accessors
+	Common::String getNameId() { return _nameId; }
+	Common::String getDirectory() { return _directory; }
+	Common::Point getCoordinates() { return _coordinates; }
+	Common::Point getOriginalCoordinates() { return _originalCoordinates; }
+	bool isActive() { return _isActive; }
+	DrawType getDrawType() { return _drawType; }
+	uint32 getPriority() { return _priority; }
+	uint32 getField6C() { return _field_6C; }
+	ImageType getImageType() { return _imageType; }
+	ObjectPresentation *getObjectPresentation() { return _objectPresentation; }
+	AnimationImage *getAnimation() { return _animation; }
+	ZoneId getZone() { return _zone; }
+	LoadFrom getLoadFrom() { return _loadFrom; }
+	ArchiveType getArchiveType() { return _archiveType; }
+
+	void setDirectory(Common::String directory) { _directory = directory; }
+	void setCoordinates(const Common::Point &point) { _coordinates = point; }
+	void setField6C(uint32 val) { _field_6C = val; }
+	void setObjectPresentation(ObjectPresentation *objectPresentation) { _objectPresentation = objectPresentation; }
+	void setAnimation(AnimationImage *animation) { _animation = animation; }
+
+	void setIndex(int index) { _index = index; }
+	int getIndex() { return _index; }
+
+private:
+	Common::String _nameId;
+	Common::String _directory;
+	Common::Point _coordinates;
+	Common::Point _originalCoordinates;
+	bool _isActive;
+	DrawType _drawType;
+	uint32 _priority;
+	byte _imageCount;
+	uint32 _field_6C;
+	ImageType _imageType;
+	ObjectPresentation *_objectPresentation;
+	AnimationImage *_animation;
+	ZoneId _zone;
+	LoadFrom _loadFrom;
+	ArchiveType _archiveType;
+
+	// Sorting
+	int _index;
+
+	void init(Common::String nameId, const Common::Point &point, bool isActive, DrawType drawType, uint32 priority, byte imageCount, ZoneId zone, LoadFrom loadFrom, ImageType imageType, ArchiveType archiveType);
+};
+
+} // End of namespace Ring
+
+#endif // RING_IMAGE_H
