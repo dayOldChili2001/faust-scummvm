@@ -120,6 +120,7 @@ private:
 	Common::Array<Accessibility *>      _accessibilities;
 	Common::Array<ObjectPresentation *> _presentations;
 	Common::Array<Animation *>          _animations;
+	Common::Array<uint32>               _animationLayers;
 	Common::Array<Text *>               _texts;
 	AssociativeArray<SoundItem *>       _soundItems;
 	byte                                _state;

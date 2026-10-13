@@ -833,6 +833,11 @@ void ApplicationFaust::draw() {
 		} else {
 			_rotation->alloc();
 			_rotation->update();
+
+			// An animation callback can switch to a puzzle and deallocate the rotation
+			if (_state != kStateUpdateRotation || !_rotation)
+				break;
+
 			_rotationPoint = _vm->getCoordinates();
 			_rotation->setCoordinates(&_rotationPoint, Common::KEYCODE_INVALID);
 			_rotation->draw();

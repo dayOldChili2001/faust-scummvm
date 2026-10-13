@@ -333,11 +333,9 @@ uint32 Animation::computeCurrentFrame(uint32 ticks) {
 		_field_4E = 0;
 	}
 
-	// Notify event handler
-	if (_currentFrame != (int32)(_activeFrame + 1)) {
-		if (!_name.empty())
-			getApp()->onAnimationNextFrame(_id, _name, _activeFrame + 1, _frameCount);
-	}
+	// Notify event handler (FAUST.EXE 0x40f88d: any playing animation, unnamed ones pass an empty name)
+	if (_field_26 && _currentFrame != (int32)(_activeFrame + 1))
+		getApp()->onAnimationNextFrame(_id, _name, _activeFrame + 1, _frameCount);
 
 	_currentFrame = _activeFrame + 1;
 

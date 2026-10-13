@@ -69,7 +69,7 @@ ObjectPresentation::~ObjectPresentation() {
 	// _layImageRotationPtr are pointers to existing objects
 	CLEAR_ARRAY(BaseId, _layerAnimationRotation);
 	// _layerAnimationRotationPtr are pointers to existing objects
-	// _layerAnimationRotationAnimation are owned by the rotations (one per layer, shared between presentations)
+	// _layerAnimationRotationAnimation are owned by the rotations
 	_layerAnimationRotationAnimation.clear();
 	CLEAR_ARRAY(Text, _textPuzzle);
 	// _textPuzzlePtr are pointers to existing objects

@@ -41,6 +41,8 @@
 #include "ring/helpers.h"
 #include "ring/ring.h"
 
+#include "common/algorithm.h"
+
 namespace Ring {
 
 #pragma region Rotation
@@ -51,10 +53,6 @@ Rotation::Rotation(Id id, Common::String name, byte state, LoadFrom, uint32 node
 
 	// Compute path (Original checks loadFrom)
 	_path = Common::String::format("DATA/%s/NODE/%s", getApp()->getCurrentZoneFolder().c_str(), name.c_str());
-
-	// Create animation for each node
-	for (uint32 i = 0; i < nodeCount; i++)
-		_animations.push_back(new Animation());
 
 	_state = state;
 
@@ -153,16 +151,19 @@ void Rotation::update() {
 	}
 
 	// Show the current frame of playing layer animations
-	for (uint32 i = 0; i < _stream->getCount(); i++)
-		if (_stream->getField0ByIndex(i))
-			_stream->setChannel(i, 0);
+	for (uint32 i = 0; i < _animations.size(); i++) {
+		uint32 layer = _animationLayers[i];
+		if (layer < _stream->getCount() && _stream->getField0ByIndex(layer))
+			_stream->setChannel(layer, 0);
+	}
 
-	for (uint32 i = 0; i < _stream->getCount(); i++) {
-		if (!_stream->getField0ByIndex(i) || !_animations[i]->getField26())
+	for (uint32 i = 0; i < _animations.size(); i++) {
+		uint32 layer = _animationLayers[i];
+		if (layer >= _stream->getCount() || !_stream->getField0ByIndex(layer) || !_animations[i]->getField26())
 			continue;
 
-		_stream->setChannel(i, 1);
-		_stream->sub_411530(i, _animations[i]->getActiveFrame());
+		_stream->setChannel(layer, 1);
+		_stream->sub_411530(layer, _animations[i]->getActiveFrame());
 	}
 
 	updateAmbientSoundPan(true);
@@ -556,13 +557,18 @@ Animation *Rotation::addPresentationAnimation(ObjectPresentation *presentation, 
 	if (!presentation)
 		error("[Rotation::addPresentationAnimation] Presentation is not set!");
 
-	if (layer >= _animations.size())
-		error("[Rotation::addPresentationAnimation] Invalid layer index (was: %d, max:%d)", layer, _animations.size() - 1);
+	if (layer >= getLayerCount())
+		error("[Rotation::addPresentationAnimation] Invalid layer index (was: %d, max:%d)", layer, getLayerCount() - 1);
 
-	Animation *animation = _animations[layer];
+	// FAUST.EXE 0x408b00: every presentation gets its own animation, tagged with its layer
+	Animation *animation = new Animation();
 	animation->init(frameCount, frameRate, 1, a5, 0);
 
-	_presentations.push_back(presentation);
+	if (Common::find(_presentations.begin(), _presentations.end(), presentation) == _presentations.end())
+		_presentations.push_back(presentation);
+
+	_animations.push_back(animation);
+	_animationLayers.push_back(layer);
 
 	return animation;
 }
@@ -706,10 +712,11 @@ void Rotation::saveLoadWithSerializer(Common::Serializer &s) {
 
 	SaveManager::syncArray(s, &_movabilities);
 
-	// Save animations with channel
-	for (uint32 i = 0; i < _animations.size(); i++) {
+	// Save animations, then layer channels
+	for (uint32 i = 0; i < _animations.size(); i++)
 		_animations[i]->saveLoadWithSerializer(s);
 
+	for (uint32 i = 0; i < getLayerCount(); i++) {
 		uint32 channel = getChannel(i);
 		s.syncAsUint32LE(channel);
 
