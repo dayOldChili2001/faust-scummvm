@@ -27,6 +27,7 @@
 
 #ifdef ENABLE_FAUST
 #include "ring/game/faust/faust_application.h"
+#include "ring/game/faust/faust_shared.h"
 #endif
 
 #ifdef ENABLE_JERUSALEM
@@ -149,7 +150,14 @@ Common::Error RingEngine::run() {
 #else
 	// Start application
 	_application->showStartupScreen();
-	_application->startMenu(false);
+
+#ifdef ENABLE_FAUST
+	// Faust starts with the login screen (FAUST.EXE 0x402140)
+	if (getGameType() == GameTypeFaust)
+		_application->startLogin(FaustGame::kPuzzlePreferences);
+	else
+#endif
+		_application->startMenu(false);
 #endif
 #endif
 

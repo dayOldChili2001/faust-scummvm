@@ -115,8 +115,91 @@ void Zone7Faust::onInit() {
 	_app->soundAdd(41000, kSoundTypeDialog, "e01_15_pact.wac", _app->getConfiguration().dialog.loadFrom, 2, _app->getConfiguration().dialog.soundChunck);
 }
 
+// FAUST.EXE 0x4ab800. setupZone() dispatches on the episode, so this is episode 7
+// ("Six"): it starts in zone 2 and zone 4, not in this class's A04 rotations.
 void Zone7Faust::onSetup(SetupType type) {
-	error("[Zone7Faust::onSetup] Not implemented");
+	switch ((uint32)type) {
+	default:
+		break;
+
+	case kSetupType1:
+		_app->timerStopAll();
+		_app->bagRemoveAll();
+		_app->setSpace(kZone2);
+		_app->playMovie("A01S01_E06M01");
+		_app->fadeOut(15, Color(0, 0, 0), 0);
+		_app->rotationSetAlp(11003, 270.0f);
+		_app->rotationSetBet(11003, 0.0f);
+		_app->rotationSetRan(11003, 87.0f);
+		_app->rotationSetActive(11003);
+		_app->timerStart(kTimer0, 1000);
+		_app->objectSetAccessibilityOff(kObject11001);
+		_app->objectSetAccessibilityOff(kObject11003);
+		_app->bagAdd(13899);
+		_app->bagAdd(13129);
+		_app->bagAdd(97001);
+		_app->objectPresentationShow(kObject25, 7);
+		break;
+
+	case kSetupType3:
+		_app->setSpace(kZone4);
+		_app->playMovie("a05s02_e06m12");
+		// TODO (zone 4, chunk 5f): FAUST.EXE 0x4a7790(1) plays A01S03_E06M11 and resets the zone-4 puzzle
+		error("[Zone7Faust::onSetup] Zone 4 helper 0x4a7790 not implemented (type %d)", type);
+
+	case kSetupType99:
+		_app->setSpace(kZone4);
+		_app->bagAdd(13899);
+		_app->puzzleSetActive(kPuzzle13901);
+		// TODO (zone 4, chunk 5f): FAUST.EXE 0x4a7790(2)
+		error("[Zone7Faust::onSetup] Zone 4 helper 0x4a7790 not implemented (type %d)", type);
+
+	case 20000:
+		// The first chapter in the extras: the intro movies
+		_app->setCurrentZone(kZoneSY);
+		_app->playMovie("e00m01");
+		_app->fadeOut(15, Color(0, 0, 0), 0);
+		_app->playMovie("e00m03");
+		_app->fadeOut(15, Color(0, 0, 0), 0);
+		returnToMenu();
+		break;
+
+	case kSetupType30000:
+	case 30001: {
+		static const struct {
+			ZoneId zone;
+			const char *movie;
+		} movies[] = {
+			{ kZone2, "A01S01_E06M01" },
+			{ kZone2, "A01S01_E06M02" },
+			{ kZone2, "A01S01_E06M03" },
+			{ kZone2, "A01S01_E06M04" },
+			{ kZone4, "A01S04_E06M07" },
+			{ kZone4, "A05S02_E06M12" }
+		};
+
+		// Chapters 21-26 (30001 plays the last one)
+		int32 index = (type == 30001) ? 5 : _app->getChapterIndex() - 21;
+		if (index >= 0 && index < (int32)ARRAYSIZE(movies)) {
+			_app->setCurrentZone(movies[index].zone);
+			_app->playMovie(movies[index].movie);
+		}
+
+		returnToMenu();
+		}
+		break;
+
+	case 30002:
+		// TODO (zone 4, chunk 5f): FAUST.EXE 0x4a7790(2)
+		error("[Zone7Faust::onSetup] Zone 4 helper 0x4a7790 not implemented (type %d)", type);
+	}
+}
+
+// 0x4aba41
+void Zone7Faust::returnToMenu() {
+	_app->setCurrentZone(kZoneSY);
+	_app->soundPlay(90001, kSoundLoop);
+	_app->puzzleSetActive(kPuzzleGeneralMenu);
 }
 
 void Zone7Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {

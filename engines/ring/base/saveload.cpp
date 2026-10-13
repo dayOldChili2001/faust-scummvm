@@ -22,6 +22,7 @@
 #include "ring/base/saveload.h"
 
 #include "common/config-manager.h"
+#include "common/random.h"
 
 #include "ring/base/application.h"
 #include "ring/base/bag.h"
@@ -31,10 +32,13 @@
 
 #include "ring/sound/sound_manager.h"
 
+#include "ring/debug.h"
 #include "ring/helpers.h"
 #include "ring/ring.h"
 
 #include "graphics/thumbnail.h"
+
+#include "image/bmp.h"
 
 namespace Ring {
 
@@ -57,6 +61,9 @@ SaveManager::~SaveManager() {
 	SAFE_DELETE(_ser);
 	SAFE_DELETE(_load);
 	SAFE_DELETE(_save);
+
+	clearList(_users);
+	clearList(_savegames);
 
 	// Zero-out passed pointers
 	_app = nullptr;
@@ -110,10 +117,7 @@ void SaveManager::writeSavegameHeader(Common::OutSaveFile *out, const SavegameHe
 	Graphics::saveThumbnail(*out, *header.thumbnail);
 }
 
-bool SaveManager::open(Common::String filename, LoadSaveType type) {
-	// Compute full path
-	Common::String path = Common::String::format("%s.ars", filename.c_str());
-
+bool SaveManager::open(Common::String path, LoadSaveType type) {
 	// Check save file
 	if (type == kLoadSaveRead && !has(path))
 		return false;
@@ -125,11 +129,17 @@ bool SaveManager::open(Common::String filename, LoadSaveType type) {
 
 	case kLoadSaveRead:
 		_load = g_system->getSavefileManager()->openForLoading(path);
+		if (!_load)
+			return false;
+
 		_ser = new Common::Serializer(_load, nullptr);
 		break;
 
 	case kLoadSaveWrite:
 		_save = g_system->getSavefileManager()->openForSaving(path);
+		if (!_save)
+			return false;
+
 		_ser = new Common::Serializer(nullptr, _save);
 		break;
 	}
@@ -147,8 +157,45 @@ void SaveManager::close() {
 	SAFE_DELETE(_save);
 }
 
+// FAUST.EXE 0x473990 (aApplication::LoadSave): Data/Save/<user>/<name>.ars
+// The original writes no header. We write a short identification so that a
+// file from another engine version is rejected instead of misread.
 bool SaveManager::loadSave(const Common::String &name, LoadSaveType type) {
-	error("[SaveManager::loadSave] Not implemented");
+	Common::String path = getUserFile(name + ".ars");
+	if (path.empty())
+		return false;
+
+	debugC(kRingDebugSavegame, "[SaveManager::loadSave] %s %s", type == kLoadSaveRead ? "Loading" : "Saving", path.c_str());
+
+	if (!open(path, type))
+		return false;
+
+	switch (type) {
+	default:
+		error("[SaveManager::loadSave] Invalid type (%d)", type);
+
+	case kLoadSaveRead: {
+		char ident[7];
+		_load->read(ident, 6);
+		ident[6] = '\0';
+
+		if (strcmp(ident, ringSavegameIdentification) != 0 || _load->readByte() != RING_SAVEGAME_VERSION) {
+			warning("[SaveManager::loadSave] Invalid savegame: %s", path.c_str());
+			close();
+			return false;
+		}
+		break;
+	}
+
+	case kLoadSaveWrite:
+		_save->write(ringSavegameIdentification, 6);
+		_save->writeByte(RING_SAVEGAME_VERSION);
+		break;
+	}
+
+	loadSaveData(type);
+
+	return true;
 }
 
 bool SaveManager::loadSave(uint32 slot, LoadSaveType type) {
@@ -173,6 +220,12 @@ bool SaveManager::loadSave(uint32 slot, LoadSaveType type) {
 		break;
 	}
 
+	loadSaveData(type);
+
+	return true;
+}
+
+void SaveManager::loadSaveData(LoadSaveType type) {
 	// Save/load array data
 	_app->saveLoadWithSerializer(*_ser);
 
@@ -205,8 +258,6 @@ bool SaveManager::loadSave(uint32 slot, LoadSaveType type) {
 
 		close();
 	}
-
-	return true;
 }
 
 bool SaveManager::loadSaveTimer(Common::String zone, LoadSaveType type) {
@@ -245,8 +296,11 @@ bool SaveManager::hasTimer(Common::String zone) {
 	return has(getTimerFile(zone, _slot));
 }
 
+// FAUST.EXE 0x45acc0: Data/Save/<user>/SaveGame_<98001>.ars exists
 bool SaveManager::hasZoneSavegame() {
-	error("[SaveManager::hasZoneSavegame] not implemented");
+	Common::String path = getUserFile(Common::String::format("SaveGame_%d.ars", (int8)_app->varGetByte(98001)));
+
+	return !path.empty() && has(path);
 }
 
 bool SaveManager::hasSavegame(uint32 userId) {
@@ -257,8 +311,32 @@ void SaveManager::deleteSavegame(uint32 userId) {
 	error("[SaveManager::deleteSavegame] Not implemented");
 }
 
+// FAUST.EXE 0x45a800: delete <file>.ars and <file>.bmp and remove the entry from save.aba
 bool SaveManager::deleteSavegame(Common::String name) {
-	error("[SaveManager::deleteSavegame] Not implemented");
+	Common::String listFile = getUserFile("save.aba");
+	if (listFile.empty())
+		return false;
+
+	Common::Array<SaveEntry *> list;
+	readList(listFile, list);
+
+	int32 index = findInList(list, name);
+	if (index == -1) {
+		clearList(list);
+		return false;
+	}
+
+	Common::SaveFileManager *saveFileMan = g_system->getSavefileManager();
+	saveFileMan->removeSavefile(getUserFile(list[index]->filename + ".ars"));
+	saveFileMan->removeSavefile(getUserFile(list[index]->filename + ".bmp"));
+
+	delete list[index];
+	list.remove_at(index);
+
+	bool written = writeList(listFile, list);
+	clearList(list);
+
+	return written;
 }
 
 bool SaveManager::has(Common::String filename) const {
@@ -281,39 +359,305 @@ void SaveManager::loadSaveSounds() {
 	close();
 }
 
+// GenPro.con (FAUST.EXE 0x45a510 / 0x45a660) is 100 random printable characters,
+// with the progress state at offset 26 and the progress animation frame at
+// offset 32, both stored + 0x37.
+static const uint32 kProgressFileSize   = 100;
+static const uint32 kProgressStateIndex = 26;
+static const uint32 kProgressIndex      = 32;
+
 void SaveManager::loadProgress() {
-	error("[SaveManager::loadProgress] Not implemented");
+	_data.progressState = kProgressStateNone;
+
+	Common::String path = getUserFile("GenPro.con");
+	if (path.empty() || !has(path)) {
+		warning("[SaveManager::loadProgress] Cannot open file: %s", path.c_str());
+		return;
+	}
+
+	Common::InSaveFile *file = g_system->getSavefileManager()->openForLoading(path);
+	if (!file) {
+		warning("[SaveManager::loadProgress] Cannot open file: %s", path.c_str());
+		return;
+	}
+
+	byte buffer[kProgressFileSize];
+	uint32 size = file->read(buffer, kProgressFileSize);
+	delete file;
+
+	if (size != kProgressFileSize) {
+		warning("[SaveManager::loadProgress] Wrong file format (length %d)", size);
+		return;
+	}
+
+	_data.progress      = (byte)(buffer[kProgressIndex] - 0x37);
+	_data.progressState = (ProgressState)(int8)(buffer[kProgressStateIndex] - 0x37);
 }
 
 void SaveManager::saveProgress(ProgressState progress) {
-	error("[SaveManager::saveProgress] Not implemented");
+	Common::String path = getUserFile("GenPro.con");
+	if (path.empty()) {
+		warning("[SaveManager::saveProgress] No current user");
+		return;
+	}
+
+	Common::OutSaveFile *file = g_system->getSavefileManager()->openForSaving(path, false);
+	if (!file) {
+		warning("[SaveManager::saveProgress] Cannot open file: %s", path.c_str());
+		return;
+	}
+
+	// Filler, as in the original
+	Common::RandomSource randomSource("faustProgress");
+	byte buffer[kProgressFileSize];
+	for (uint32 i = 0; i < kProgressFileSize; i++)
+		buffer[i] = (byte)(0x21 + randomSource.getRandomNumber(59));
+
+	buffer[kProgressIndex]      = (byte)(_data.progress + 0x37);
+	buffer[kProgressStateIndex] = (byte)(progress + 0x37);
+
+	file->write(buffer, kProgressFileSize);
+	file->finalize();
+	delete file;
 }
 
+// FAUST.EXE 0x474230 (aApplication::StartLogin) reads the users from Data/Save/user.aba
 Common::Array<SaveManager::SaveEntry *> *SaveManager::loadUsers() {
-	error("[SaveManager::loadUsers] Not implemented");
+	readList(getUsersFile(), _users);
+
+	return &_users;
 }
 
-// TODO (chunk 5c): FAUST.EXE 0x45e8de creates Data/Save/userN/, adds it to user.aba and copies zero.aba and aPre.ini into it
+// FAUST.EXE 0x45e8de: create Data/Save/userN/, add it to user.aba, then copy zero.aba
+// (an empty save list) and aPre.ini into it
 bool SaveManager::createUser(const Common::String &name) {
-	warning("[SaveManager::createUser] Not implemented (%s)", name.c_str());
-	return false;
+	readList(getUsersFile(), _users);
+
+	if (findInList(_users, name) != -1)
+		return true;
+
+	// Find a free folder name
+	Common::String folder;
+	for (uint32 i = 1; ; i++) {
+		folder = Common::String::format("user%d", i);
+		if (findInList(_users, folder) == -1)
+			break;
+	}
+
+	SaveEntry *entry = new SaveEntry();
+	entry->description = name;
+	entry->filename = folder;
+	_users.push_back(entry);
+
+	if (!writeList(getUsersFile(), _users)) {
+		warning("[SaveManager::createUser] Cannot add to file list: user.aba");
+		return false;
+	}
+
+	// The preferences (aPre.ini) are not per user yet
+	Common::Array<SaveEntry *> empty;
+	return writeList(getUserFile(folder, "save.aba"), empty);
 }
 
-// TODO (chunk 5c): FAUST.EXE 0x45a920
+// FAUST.EXE 0x45a920: delete the user's savegames and files, then remove the user from user.aba
 bool SaveManager::deleteUser(const Common::String &name) {
-	warning("[SaveManager::deleteUser] Not implemented (%s)", name.c_str());
-	return false;
+	readList(getUsersFile(), _users);
+
+	int32 index = findInList(_users, name);
+	if (index == -1)
+		return false;
+
+	Common::SaveFileManager *saveFileMan = g_system->getSavefileManager();
+	Common::StringArray files = saveFileMan->listSavefiles(getUserFile(_users[index]->filename, "*"));
+	for (Common::StringArray::const_iterator it = files.begin(); it != files.end(); it++)
+		saveFileMan->removeSavefile(*it);
+
+	delete _users[index];
+	_users.remove_at(index);
+
+	return writeList(getUsersFile(), _users);
 }
 
-// TODO (chunk 5c): FAUST.EXE 0x45de81 copies the current savegame and thumbnail to a named entry in save.aba
+// FAUST.EXE 0x45b140 reads the current user's save.aba
+Common::Array<SaveManager::SaveEntry *> *SaveManager::loadSavegames() {
+	clearList(_savegames);
+
+	Common::String path = getUserFile("save.aba");
+	if (!path.empty())
+		readList(path, _savegames);
+
+	return &_savegames;
+}
+
+// FAUST.EXE 0x45de81: copy SaveGame_<98001>.ars (written by startMenu) and the
+// thumbnail to "<98001>_ArSa<n>", and add or replace the name in save.aba
 bool SaveManager::saveAs(const Common::String &name) {
-	warning("[SaveManager::saveAs] Not implemented (%s)", name.c_str());
-	return false;
+	Common::String listFile = getUserFile("save.aba");
+	if (listFile.empty() || name.empty())
+		return false;
+
+	byte chapter = _app->varGetByte(98001);
+
+	Common::Array<SaveEntry *> list;
+	readList(listFile, list);
+
+	Common::String filename;
+	int32 index = findInList(list, name);
+	if (index != -1) {
+		filename = list[index]->filename;
+	} else {
+		// FindTempFileName
+		for (uint32 i = 0; ; i++) {
+			filename = Common::String::format("%d_ArSa%d", chapter, i);
+			if (findInList(list, filename) == -1 && !has(getUserFile(filename + ".ars")))
+				break;
+		}
+
+		SaveEntry *entry = new SaveEntry();
+		entry->description = name;
+		entry->filename = filename;
+		list.push_back(entry);
+	}
+
+	bool saved = copyFile(getUserFile(Common::String::format("SaveGame_%d.ars", chapter)), getUserFile(filename + ".ars"));
+	if (!saved) {
+		warning("[SaveManager::saveAs] Cannot copy file: SaveGame_%d.ars", chapter);
+	} else {
+		// The original copies data/SY/Image/osc.bmp
+		if (_header.thumbnail) {
+			Common::OutSaveFile *file = g_system->getSavefileManager()->openForSaving(getUserFile(filename + ".bmp"), false);
+			if (file) {
+				Image::writeBMP(*file, *_header.thumbnail);
+				file->finalize();
+				delete file;
+			}
+		}
+
+		saved = writeList(listFile, list);
+	}
+
+	clearList(list);
+
+	return saved;
 }
 
 void SaveManager::setThumbnail(ImageSurface *image) {
 	_header.setThumbnail(image->getSurface());
 }
+
+#pragma region File lists
+
+// The original's .aba files are aFileList records (name and file name). Ours are
+// plain text: one "name<TAB>file name" line per entry.
+void SaveManager::clearList(Common::Array<SaveEntry *> &list) {
+	for (uint32 i = 0; i < list.size(); i++)
+		delete list[i];
+
+	list.clear();
+}
+
+bool SaveManager::readList(const Common::String &filename, Common::Array<SaveEntry *> &list) {
+	clearList(list);
+
+	Common::InSaveFile *file = g_system->getSavefileManager()->openForLoading(filename);
+	if (!file)
+		return false;
+
+	while (!file->eos() && !file->err()) {
+		Common::String line = file->readLine();
+		if (line.empty())
+			continue;
+
+		size_t separator = line.findFirstOf('\t');
+		if (separator == Common::String::npos)
+			continue;
+
+		SaveEntry *entry = new SaveEntry();
+		entry->description = Common::String(line.c_str(), separator);
+		entry->filename = Common::String(line.c_str() + separator + 1);
+		list.push_back(entry);
+	}
+
+	delete file;
+
+	return true;
+}
+
+bool SaveManager::writeList(const Common::String &filename, const Common::Array<SaveEntry *> &list) {
+	Common::OutSaveFile *file = g_system->getSavefileManager()->openForSaving(filename, false);
+	if (!file)
+		return false;
+
+	for (uint32 i = 0; i < list.size(); i++)
+		file->writeString(list[i]->description + "\t" + list[i]->filename + "\n");
+
+	file->finalize();
+	bool success = !file->err();
+	delete file;
+
+	return success;
+}
+
+// Entries are looked up by name or by file name
+int32 SaveManager::findInList(const Common::Array<SaveEntry *> &list, const Common::String &name) {
+	for (uint32 i = 0; i < list.size(); i++)
+		if (list[i]->description == name || list[i]->filename == name)
+			return (int32)i;
+
+	return -1;
+}
+
+#pragma endregion
+
+#pragma region User files
+
+// The original keeps everything in Data/Save/. Here the files are ScummVM
+// savefiles named "<gameid>-<file>" and "<gameid>-<user folder>-<file>".
+Common::String SaveManager::getUsersFile() const {
+	return Common::String::format("%s-user.aba", ((RingEngine *)g_engine)->getGameDescription()->desc.gameId);
+}
+
+Common::String SaveManager::getUserFile(const Common::String &filename) {
+	readList(getUsersFile(), _users);
+
+	int32 index = findInList(_users, _app->getUser());
+	if (index == -1)
+		return "";
+
+	return getUserFile(_users[index]->filename, filename);
+}
+
+Common::String SaveManager::getUserFile(const Common::String &folder, const Common::String &filename) {
+	return Common::String::format("%s-%s-%s", ((RingEngine *)g_engine)->getGameDescription()->desc.gameId, folder.c_str(), filename.c_str());
+}
+
+bool SaveManager::copyFile(const Common::String &from, const Common::String &to) const {
+	Common::InSaveFile *in = g_system->getSavefileManager()->openForLoading(from);
+	if (!in)
+		return false;
+
+	Common::OutSaveFile *out = g_system->getSavefileManager()->openForSaving(to);
+	if (!out) {
+		delete in;
+		return false;
+	}
+
+	byte buffer[4096];
+	while (!in->eos() && !in->err()) {
+		uint32 size = in->read(buffer, sizeof(buffer));
+		out->write(buffer, size);
+	}
+
+	out->finalize();
+	bool success = !in->err() && !out->err();
+
+	delete in;
+	delete out;
+
+	return success;
+}
+
+#pragma endregion
 
 void SaveManager::setDescription(const Common::String &description) {
 	_header.description = description;

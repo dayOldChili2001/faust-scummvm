@@ -433,8 +433,8 @@ void ZoneSystemFaust::onInit() {
 	_app->objectSetPuzzleAccessibilityKey(kObject55, 9, Common::KEYCODE_RETURN);
 	_app->objectSetPuzzleAccessibilityKey(kObject55, 10, Common::KEYCODE_ESCAPE);
 	_app->objectAdd(kObject99500, "", "", 1);
-	_app->objectAddPuzzleAccessibility(kObject99500, kPuzzlePreferences, Common::Rect(132, 413, 252, 440), false, kCursorMenuActive, 1);
-	_app->objectAddPuzzleAccessibility(kObject99500, kPuzzlePreferences, Common::Rect(387, 413, 507, 440), false, kCursorMenuActive, 0);
+	_app->objectAddPuzzleAccessibility(kObject99500, kPuzzlePreferences, Common::Rect(132, 413, 252, 440), true, kCursorMenuActive, 1);
+	_app->objectAddPuzzleAccessibility(kObject99500, kPuzzlePreferences, Common::Rect(387, 413, 507, 440), true, kCursorMenuActive, 0);
 	_app->objectAddPresentation(kObject99500);
 	_app->objectPresentationAddImageToPuzzle(kObject99500, 0, kPuzzlePreferences, "log_l1h.bmp", Common::Point(132, 413), true, kDrawTypeNormal, 1100);
 	_app->objectAddPresentation(kObject99500);
@@ -2039,6 +2039,12 @@ void ZoneSystemFaust::onQuestion(Id target) {
 			warning("[ZoneSystemFaust::onQuestion] Cannot remove saves for: %s", name.c_str());
 			break;
 		}
+
+		// 0x45abdf: clear the name field
+		_name.clear();
+		_app->objectPresentationSetTextToPuzzle(kObject99501, 0, 0, _name);
+		uint32 width = _app->objectPresentationGetTextWidth(kObject99501, 0, 0);
+		_app->objectPresentationSetAnimationCoordinatesOnPuzzle(kObject99501, 0, Common::Point((int16)(width + 233), 334));
 
 		_app->visualListResetObjectClicked(3, kPuzzlePreferences);
 		_app->visualListRemove(3, kPuzzlePreferences, objectId, true);

@@ -42,6 +42,8 @@ public:
 
 private:
 	ApplicationFaust *_app;
+
+	void returnToMenu();
 };
 
 } // End of namespace Ring

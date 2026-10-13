@@ -35,6 +35,8 @@ public:
 	ZoneSystemFaust(ApplicationFaust *application);
 	~ZoneSystemFaust();
 
+	int8 getChapterIndex() const { return _chapterIndex; }
+
 	void onInit() override;
 	void onTimer(TimerId id) override;
 	void onKeyDown(const Common::KeyState &keyState) override;

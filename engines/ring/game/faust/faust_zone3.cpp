@@ -618,7 +618,7 @@ void Zone3Faust::onSetup(SetupType type) {
 		break;
 
 	case kSetupType30000:
-		switch (_app->getCurrentPresentationIndex())
+		switch (_app->getChapterIndex())
 		{
 		default:
 			break;

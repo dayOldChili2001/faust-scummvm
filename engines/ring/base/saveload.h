@@ -67,6 +67,11 @@ public:
 			if (!surface)
 				return false;
 
+			if (thumbnail)
+				thumbnail->free();
+			else
+				thumbnail = new Graphics::Surface();
+
 			thumbnail->copyFrom(*surface);
 
 			return true;
@@ -134,6 +139,9 @@ public:
 	bool createUser(const Common::String &name);
 	bool deleteUser(const Common::String &name);
 
+	// Named savegames of the current user (save.aba)
+	Common::Array<SaveEntry *> *loadSavegames();
+
 	// Management
 	bool remove(uint32 slot) const;
 	void deleteSavegame(uint32 userId);
@@ -182,9 +190,26 @@ private:
 
 	void initialize();
 
+	// Users and named savegames (the original's user.aba and save.aba lists)
+	Common::Array<SaveEntry *> _users;
+	Common::Array<SaveEntry *> _savegames;
+
 	bool has(Common::String filename) const;
 	bool open(Common::String filename, LoadSaveType type);
 	void close();
+	void loadSaveData(LoadSaveType type);
+
+	// File lists
+	static void clearList(Common::Array<SaveEntry *> &list);
+	static bool readList(const Common::String &filename, Common::Array<SaveEntry *> &list);
+	static bool writeList(const Common::String &filename, const Common::Array<SaveEntry *> &list);
+	static int32 findInList(const Common::Array<SaveEntry *> &list, const Common::String &name);
+
+	// User files
+	Common::String getUsersFile() const;
+	Common::String getUserFile(const Common::String &filename);
+	static Common::String getUserFile(const Common::String &folder, const Common::String &filename);
+	bool copyFile(const Common::String &from, const Common::String &to) const;
 };
 
 template<class T>

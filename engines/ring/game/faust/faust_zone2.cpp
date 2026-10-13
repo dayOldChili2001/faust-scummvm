@@ -170,10 +170,10 @@ void Zone2Faust::onSetup(SetupType type) {
 		_app->timerStopAll();
 		_app->bagRemoveAll();
 		_app->setSpace(kZone2);
-		_app->playMovie("2190");
+		_app->playMovie("A01S01_E01M01");
 		_app->fadeOut(15, Color(0, 0, 0), 0);
 		_app->timerStart(kTimer0, 1000);
-		_app->playMovie("2191");
+		_app->playMovie("A01S01_E01M08");
 		_app->rotationSetAlp(11005, 0.0f);
 		_app->rotationSetBet(11005, 0.0f);
 		_app->rotationSetRan(11005, 87.0f);
@@ -190,8 +190,9 @@ void Zone2Faust::onSetup(SetupType type) {
 		_app->bagRemoveAll();
 		_app->bagAdd(13899);
 
+		// FAUST.EXE 0x4ac1cc sets the progress animation frame (0x4dc040), it doesn't save
 		if (_app->getSaveManager()->getData()->progressState == kProgressState1)
-			_app->getSaveManager()->saveProgress(kProgressState3);
+			_app->getSaveManager()->getData()->progress = 3;
 
 		_app->setSpace(kZone7);
 		_app->soundPlay(41001, kSoundLoop);
@@ -210,7 +211,7 @@ void Zone2Faust::onSetup(SetupType type) {
 		_app->setSpace(kZone6);
 		_app->soundPlay(31003, kSoundLoop);
 		_app->displayFade("a03_black.bmp", "a03s01_e01m09.bmp", 12, 0, kLoadFromCd, kArchiveArt);
-		_app->playMovie("2192");
+		_app->playMovie("A03S01_E01M09");
 		_app->rotationSetAlp(31011, 0.0f);
 		_app->rotationSetBet(31011, 0.0f);
 		_app->rotationSetRan(31011, 87.0f);
@@ -221,41 +222,41 @@ void Zone2Faust::onSetup(SetupType type) {
 		_app->timerStopAll();
 		_app->setSpace(kZone7);
 		_app->puzzleSetActive(kPuzzle49000);
-		_app->playMovie("1396");
+		_app->playMovie("A04S01N02A01");
 		_app->soundStopAll(1024);
 		_app->soundPlay(41011, kSoundLoop);
 		_app->sub_4A08E0();
 		break;
 
 	case kSetupType30000:
-		switch (_app->getCurrentPresentationIndex())
+		switch (_app->getChapterIndex())
 		{
 		default:
 			break;
 
 		case 1:
 			_app->setCurrentZone(kZone2);
-			_app->playMovie("2190");
+			_app->playMovie("A01S01_E01M01");
 			break;
 
 		case 2:
 			_app->setCurrentZone(kZone3);
-			_app->playMovie("1127");
+			_app->playMovie("A01S02_E01M03");
 			break;
 
 		case 3:
 			_app->setCurrentZone(kZone3);
-			_app->playMovie("1126");
+			_app->playMovie("A02S01_E01M04");
 			break;
 
 		case 4:
 			_app->setCurrentZone(kZone3);
-			_app->playMovie("1136");
+			_app->playMovie("A01S02_E01M05");
 			break;
 
 		case 5:
 			_app->setCurrentZone(kZone6);
-			_app->playMovie("1375");
+			_app->playMovie("A04S01_E01M07");
 			break;
 		}
 

@@ -133,7 +133,7 @@ protected:
 	void sub_4A08E0();
 	void sub_4A2CF0();
 
-	uint32 getCurrentPresentationIndex() { return _currentPresentationIndex; }
+	int8 getChapterIndex() const;
 
 private:
 	// Event handlers
@@ -160,7 +160,6 @@ private:
 	bool _controlNotPressed;
 
 	// Tracking variables
-	uint32 _currentPresentationIndex;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Start menu

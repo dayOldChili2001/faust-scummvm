@@ -110,7 +110,8 @@ Rotation::~Rotation() {
 	CLEAR_ARRAY(Movability,         _movabilities);
 	// Accessibilities are stored in the parent Object
 	// Presentations are stored in the parent Object
-	// Animations are stored in the parent Object
+	// The layer animations are only referenced by the presentations
+	CLEAR_ARRAY(Animation,          _animations);
 	CLEAR_ARRAY(Text,               _texts);
 	CLEAR_ARRAY(SoundItem,          _soundItems);
 

@@ -263,9 +263,10 @@ void ApplicationFaust::startMenu(bool savegame) {
 		_vm->setFlag(false);
 		_bag->reset();
 
-		byte slot = (byte)varGetByte(98001);
-		if (!_saveManager->loadSave(slot, kLoadSaveWrite))
-			error("[ApplicationRing::startMenu] Cannot save game in slot %d", slot);
+		// The in-game menu saves to SaveGame_<chapter>, which saveAs copies when the player saves
+		Common::String filename = Common::String::format("SaveGame_%d", (int8)varGetByte(98001));
+		if (!_saveManager->loadSave(filename, kLoadSaveWrite))
+			error("[ApplicationFaust::startMenu] Cannot save game: %s", filename.c_str());
 
 		// Save a copy of the screen surface for savegame
 		SAFE_DELETE(_thumbnail);
@@ -775,8 +776,16 @@ void ApplicationFaust::showCredits() {
 	soundStop(52000, 1024);
 }
 
+// Only used to skip the menu (RING_DEBUG_SKIPMENU). It starts a new game the way
+// PLAY does once a user has logged in (exitToMenu(1) with no savegame).
 void ApplicationFaust::startGame() {
-	error("[ApplicationFaust::startGame] Not implemented");
+	if (!_preferenceHandler)
+		error("[ApplicationFaust::startGame] Preference handler not initialized properly");
+
+	_preferenceHandler->load();
+
+	varSetByte(98001, 1);
+	setupZone(kZone2, kSetupType1);
 }
 
 #pragma endregion
@@ -2218,14 +2227,30 @@ void ApplicationFaust::sub_468290(uint32 a1) {
 	}
 }
 
-// FAUST.EXE 0x460150: resume play in zones 11/12/13 (the first argument is unused)
-// TODO (chunk 5c): FAUST.EXE 0x45b140 fills the list from Data/Save/<user>/save.aba with the
-// entries prefixed "<98001>_"
+// FAUST.EXE 0x45b140: fill a visual list with the current user's savegames for this chapter
+// (save.aba entries whose file name starts with "<98001>_")
 void ApplicationFaust::loadSaveList(Id visualId, PuzzleId puzzleId) {
-	warning("[ApplicationFaust::loadSaveList] Not implemented (list %d, puzzle %d)", visualId, puzzleId.id());
+	Common::String prefix = Common::String::format("%d_", (int8)varGetByte(98001));
+	Common::Array<SaveManager::SaveEntry *> *savegames = _saveManager->loadSavegames();
+
+	for (uint32 i = 0; i < savegames->size(); i++) {
+		if (!(*savegames)[i]->filename.hasPrefix(prefix))
+			continue;
+
+		ObjectId objectId = i + 2000000;
+		objectAdd(objectId, (*savegames)[i]->description, (*savegames)[i]->filename, 1);
+		visualListAdd(visualId, puzzleId, objectId);
+	}
 }
 
-// The original takes the zone as its first argument, but doesn't use it
+// The chapter selected in the extras (exe global 0x4dbf0c), used by the episodes' 30000 setups
+int8 ApplicationFaust::getChapterIndex() const {
+	return _zoneSystem->getChapterIndex();
+}
+
+// FAUST.EXE 0x460150: resume play in zones 11/12/13. This is also episode 4's onSetup
+// in the exe's setup dispatcher (0x47d090). The original takes the zone as its first
+// argument, but doesn't use it.
 void ApplicationFaust::sub_460150(uint32 type) {
 	switch (type) {
 	default:
