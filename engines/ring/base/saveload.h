@@ -131,11 +131,14 @@ public:
 
 	// Users
 	Common::Array<SaveEntry *> *loadUsers();
+	bool createUser(const Common::String &name);
+	bool deleteUser(const Common::String &name);
 
 	// Management
 	bool remove(uint32 slot) const;
 	void deleteSavegame(uint32 userId);
 	bool deleteSavegame(Common::String name);
+	bool saveAs(const Common::String &name);
 
 	// Thumbnail image
 	void setThumbnail(ImageSurface *image);

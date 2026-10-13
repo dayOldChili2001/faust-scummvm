@@ -43,11 +43,16 @@ Dialog::Dialog(Id id, Common::String name) : BaseObject(id) {
 	if (name.size() < 4)
 		error("[Dialog::Dialog] Invalid dialog name (length should be >= 4)");
 
+	// Sound names carry an extension (swapped for dia/dan, as in the original); movie names do not
+	Common::String baseName = name;
+	if (baseName.size() > 4 && baseName[baseName.size() - 4] == '.')
+		baseName.erase(baseName.size() - 4);
+
 	// Read lyrics
-	readLyrics(Common::String::format("DATA/%s/DIA/%s/%s.dia", getApp()->getCurrentZoneFolder().c_str(), getApp()->getLanguageFolder().c_str(), name.c_str()));
+	readLyrics(Common::String::format("DATA/%s/DIA/%s/%s.dia", getApp()->getCurrentZoneFolder().c_str(), getApp()->getLanguageFolder().c_str(), baseName.c_str()));
 
 	// Read animations
-	_visible = readAnimation(Common::String::format("DATA/%s/DIA/%s/%s.dan", getApp()->getCurrentZoneFolder().c_str(), getApp()->getLanguageFolder().c_str(), name.c_str()));
+	_visible = readAnimation(Common::String::format("DATA/%s/DIA/%s/%s.dan", getApp()->getCurrentZoneFolder().c_str(), getApp()->getLanguageFolder().c_str(), baseName.c_str()));
 }
 
 Dialog::~Dialog() {
@@ -195,9 +200,8 @@ void Dialog::parseLyrics(Common::String line) {
 	Common::String dialogs = line.begin() + ticks.size() + 1;
 	dialogs.trim();
 
+	// A bare "#" is a blank subtitle (both lines empty)
 	Common::StringTokenizer lines(dialogs, "#");
-	if (lines.empty())
-		error("[Dialog::parseLyrics] Invalid dialog line format (%s)", dialogs.c_str());
 
 	// Store line
 	DialogLine *dialogLine = new DialogLine();

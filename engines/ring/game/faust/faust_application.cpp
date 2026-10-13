@@ -993,19 +993,11 @@ void ApplicationFaust::initZones() {
 void ApplicationFaust::setupZone(ZoneId zone, SetupType type) {
 	debugC(kRingDebugLogic, "Setting up zone %s", getZoneName(zone).c_str());
 
+	// The original asks for the zone's CD here. loadConfiguration() only accepts
+	// a full DVD copy, so every zone's data is present (and Faust has no
+	// language packs: there is no pack.ini in FAUST.EXE).
 	bool hasLanguage = true;
-	bool hasData = false;
-
-	if (zone == kZoneSY) {
-		hasData = true;
-	} else {
-		// The original checks for the correct CD,
-		// we should instead check that the zone folder
-		// has been copied properly
-		warning("[ApplicationFaust::setupZone] Zone CD check not implemented");
-
-		hasLanguage = hasLanguagePack();
-	}
+	bool hasData = true;
 
 	reset();
 	soundStopAll(8);
@@ -2178,8 +2170,121 @@ void ApplicationFaust::sub_460280() {
 	error("[ApplicationFaust::sub_460280] Not implemented");
 }
 
+// FAUST.EXE 0x4687f0: zone 14 radio puzzle (object 22 / sound 112016) outcomes
 void ApplicationFaust::sub_468290(uint32 a1) {
-	error("[ApplicationFaust::sub_468290] Not implemented");
+	switch (a1) {
+	default:
+		break;
+
+	case 1:
+		sub_45FF30();
+		objectPresentationHide(kObject12);
+
+		if (varGetByte(114100) != 1) {
+			playMovie("a11s04n01a09b");
+			fadeOut(15, Color(0, 0, 0), 0);
+			soundStop(111079, 1024);
+			soundStop(111080, 1024);
+			objectSetAccessibilityOn(kObject1);
+			objectPresentationShow(kObject15);
+			soundPlay(111042);
+			break;
+		}
+
+		playMovie("a11s04n01a09a");
+		objectSetAccessibilityOn(kObject114006, 8, 8);
+		// Fallback to case 3
+		sub_468290(3);
+		break;
+
+	case 2:
+		fadeOut(15, Color(0, 0, 0), 0);
+		soundStop(111079, 1024);
+		soundStop(111080, 1024);
+		objectSetAccessibilityOn(kObject1);
+		objectPresentationShow(kObject15);
+		soundPlay(111076);
+		break;
+
+	case 3:
+		soundPlay(varGetByte(111000) == 1 ? 111080 : 111079, kSoundLoop);
+		sub_45FF30();
+		objectPresentationHide(kObject12);
+		objectSetAccessibilityOff(kObject22);
+		varSetByte(114100, 0);
+		objectSetAccessibilityOff(kObject114027, 1, 1);
+		objectSetAccessibilityOn(kObject114027, 0, 0);
+		break;
+	}
+}
+
+// FAUST.EXE 0x460150: resume play in zones 11/12/13 (the first argument is unused)
+// TODO (chunk 5c): FAUST.EXE 0x45b140 fills the list from Data/Save/<user>/save.aba with the
+// entries prefixed "<98001>_"
+void ApplicationFaust::loadSaveList(Id visualId, PuzzleId puzzleId) {
+	warning("[ApplicationFaust::loadSaveList] Not implemented (list %d, puzzle %d)", visualId, puzzleId.id());
+}
+
+// The original takes the zone as its first argument, but doesn't use it
+void ApplicationFaust::sub_460150(uint32 type) {
+	switch (type) {
+	default:
+		error("[ApplicationFaust::sub_460150] Not implemented (type %d)", type);
+
+	case 1:
+		timerStopAll();
+		bagRemoveAll();
+		setSpace(kZone12);
+		playMovie("a08s01_e03m01");
+		fadeOut(15, Color(0, 0, 0), 0);
+		soundPlay(81107, kSoundLoop);
+		displayFade("a08_black.bmp", "a08_start_episode.bmp", 12, 0, kLoadFromCd, kArchiveArt);
+		rotationSetAlp(81011, 4.0f);
+		rotationSetBet(81011, 0.0f);
+		rotationSetRan(81011, 87.0f);
+		rotationSetActive(81011);
+		timerStart(kTimer7, 1000);
+		timerStart(kTimer8, 500);
+		bagAdd(13899);
+		bagAdd(kObjectMatches);
+		bagAdd(kObjectHomunculus);
+		objectPresentationShow(kObject25, 3);
+		break;
+
+	case 2:
+		timerStopAll();
+		setSpace(kZone11);
+		rotationSetAlp(72014, 90.0f);
+		rotationSetBet(72014, 0.0f);
+		rotationSetRan(72014, 87.0f);
+		rotationSetActive(72014);
+		timerStart(kTimer0, 1);
+		timerStart(kTimer3, 400);
+		timerStart(kTimer5, 1);
+		objectPresentationShow(kObject8, 0);
+		objectPresentationShow(kObject9);
+		objectPresentationShow(kObject10);
+		break;
+
+	case 3:
+		timerStopAll();
+		bagAdd(13899);
+		bagAdd(kObjectMatches);
+		bagAdd(kObjectHomunculus);
+		setSpace(kZone13);
+		playMovie("A08S03_E03M06");
+		if (_saveManager->getData()->progressState == kProgressState3)
+			_saveManager->getData()->progress = 28;
+		fadeOut(15, Color(0, 0, 0), 0);
+		rotationSetAlp(91002, 90.0f);
+		rotationSetBet(91002, 0.0f);
+		rotationSetRan(91002, 87.0f);
+		rotationSetActive(91002);
+		soundPlay(91920, kSoundLoop);
+		displayFade("a09_black.bmp", "a09_start.bmp", 12, 0, kLoadFromCd, kArchiveArt);
+		timerStart(kTimer1, 15000);
+		break;
+	}
 }
 
 void ApplicationFaust::sub_4A08E0() {

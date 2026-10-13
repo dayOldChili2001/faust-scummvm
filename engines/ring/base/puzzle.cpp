@@ -518,6 +518,10 @@ bool Puzzle::imagePriorityCompare(ImageHandle *image1, ImageHandle *image2) {
 		return (image1->getIndex() < image2->getIndex());
 	}
 
+	// Faust draws lower priorities first (aPuzzle::AddPreImg keeps the list in ascending order)
+	if (((RingEngine *)g_engine)->getGameType() == GameTypeFaust)
+		return (image1->getPriority() < image2->getPriority());
+
 	return (image1->getPriority() > image2->getPriority());
 }
 

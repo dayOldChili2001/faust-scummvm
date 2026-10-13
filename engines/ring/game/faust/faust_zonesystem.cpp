@@ -22,6 +22,7 @@
 #include "ring/game/faust/faust_zonesystem.h"
 
 #include "ring/base/object.h"
+#include "ring/base/preferences.h"
 #include "ring/base/saveload.h"
 
 #include "ring/game/faust/faust_application.h"
@@ -31,11 +32,24 @@
 #include "ring/ring.h"
 #include "ring/helpers.h"
 
+#include "ring/graphics/drag_control.h"
+#include "ring/graphics/image.h"
+
+#include "audio/mixer.h"
+
+#include "common/util.h"
+
+#include <math.h>
+
 using namespace FaustGame;
 
 namespace Ring {
 
-ZoneSystemFaust::ZoneSystemFaust(ApplicationFaust *application) : _app(application) {
+ZoneSystemFaust::ZoneSystemFaust(ApplicationFaust *application) : _app(application),
+	_prefsVolume(100), _prefsVolumeDialog(100), _prefsReverseStereo(false), _prefsSubtitles(true),
+	_prefsVolumeBackup(100), _prefsVolumeDialogBackup(100), _prefsReverseStereoBackup(false), _prefsSubtitlesBackup(true),
+	_object22Volume(0), _dialPosition(0), _dialLastPosition(-1),
+	_object1Visible(true), _jukeboxIndex(0), _chapterIndex(0) {
 }
 
 ZoneSystemFaust::~ZoneSystemFaust() {
@@ -1012,8 +1026,1191 @@ void ZoneSystemFaust::onKeyDown(const Common::KeyState &keyState) {
 	_app->objectPresentationSetAnimationCoordinatesOnPuzzle(objectId, 0, Common::Point(width + 233, y));
 }
 
-void ZoneSystemFaust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {
-	error("[ZoneSystemFaust::onButtonUp] Not implemented");
+static int16 getSliderKnobX(int32 value);
+
+// FAUST.EXE 0x45b8b0
+void ZoneSystemFaust::onButtonUp(ObjectId id, Id target, Id, uint32, const Common::Point &point) {
+	// Zone 14 radio parts
+	if (id >= 112601 && id <= 112612) {
+		_app->objectPresentationHide(kObject13, (uint32)(id - 112600));
+		_app->bagAdd(id);
+	}
+
+	switch (id) {
+	default:
+		break;
+
+	case kObject1:
+		if (_app->bagHasClickedObject())
+			return;
+
+		// Debug overlay toggle (the 3D sound calls are leftovers in the original)
+		if (_object1Visible) {
+			_app->objectPresentationHideAndRemove(kObject1);
+			_object1Visible = false;
+		} else {
+			_app->objectPresentationShow(kObject1);
+			_object1Visible = true;
+			_app->rotationSet3DSoundOn(50004, 1);
+			_app->puzzleSet3DSoundOn(50001, 1);
+		}
+		break;
+
+	case kObjectYesNo:
+		// Quit confirmation
+		switch (target) {
+		default:
+			break;
+
+		case 0:
+			_app->objectPresentationHideAndRemove(kObjectYesNo);
+			_app->objectSetAccessibilityOff(kObjectYesNo);
+			_app->puzzleSetMod(kPuzzleMenu, 1, 0);
+			_app->objectPresentationHide(kObject99004, 0);
+			_app->varSetByte(98006, 0);
+			break;
+
+		case 1:
+			// The original posts WM_DESTROY first, so this runs before the game quits
+			if (_app->hasCurrentPuzzle()) {
+				if (_app->getCurrentPuzzleId() == kPuzzleGeneralMenu)
+					_app->showCredits();
+
+				if (_app->getCurrentPuzzleId() != kPuzzlePreferences)
+					_app->getSaveManager()->saveProgress(_app->getSaveManager()->getData()->progressState);
+			}
+
+			Engine::quitGame();
+			break;
+		}
+		break;
+
+	case kObject3:
+		_app->messageHideWarning((uint32)target);
+		break;
+
+	case kObjectQuestion:
+		onQuestion(target);
+		break;
+
+	case kObject6:
+		if (_app->bagHasClickedObject()) {
+			if (target == 0 && _app->bagGetClickedObject() == 97001) {
+				_app->objectPresentationShow(kObject6, 5);
+				_app->objectPresentationHide(kObject6, 3);
+				_app->objectPresentationShow(kObject6, 4);
+				_app->varSetByte(97001, 1);
+			}
+
+			_app->cursorDelete();
+		}
+		break;
+
+	case kObject14:
+		// In-game menu
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			return;
+		}
+
+		switch (target) {
+		default:
+			break;
+
+		case 0:
+			// Hint: replays the current hint, or moves to the next one once the timer has run out
+			switch (_app->varGetByte(98001)) {
+			default:
+				break;
+
+			case 3:
+				playHint(97007, 9, 90300);
+				break;
+
+			case 4:
+				playHint(97008, 12, 90400);
+				break;
+
+			case 5:
+				playHint(97009, 7, 90500);
+				break;
+
+			case 6:
+				playHint(97010, 6, 90600);
+				break;
+
+			case 7:
+				playHint(97011, 7, 90700);
+				break;
+			}
+			break;
+
+		case 1: {
+			// Map of the current zone
+			_app->objectPresentationHide(kObject14);
+			_app->objectSetAccessibilityOff(kObject14, 0, 3);
+			_app->varSetByte(97002, 0);
+			_app->objectPresentationHideAndRemove(kObject14);
+			_app->soundPlay(90002);
+
+			int16 zone = _app->varGetWord(97013);
+			uint32 index;
+			if (zone < 6)
+				index = 12;
+			else if (zone == 6)
+				index = 13;
+			else if (zone >= 8 && zone <= 10)
+				index = zone + 6;
+			else if (zone >= 12 && zone <= 17)
+				index = zone + 5;
+			else
+				index = 11;
+
+			_app->objectPresentationShow(kObject14, index);
+			}
+			break;
+
+		case 2:
+			// Story pages
+			hideMainMenuButtons();
+			_app->objectPresentationHide(kObject99010, 0);
+			_app->objectSetAccessibilityOff(kObject99010);
+			_app->objectPresentationHide(kObject99010);
+			_app->objectPresentationHide(kObject14);
+			_app->objectSetAccessibilityOff(kObject14, 0, 3);
+			_app->varSetByte(97002, 0);
+			_app->objectPresentationHideAndRemove(kObject14);
+			_app->varSetByte(97012, 1);
+			_app->objectPresentationShow(kObject14, (uint32)(_app->varGetByte(97012) + 22));
+			_app->soundPlay(90003);
+			_app->objectSetAccessibilityOn(kObject14, 5, 5);
+			_app->objectSetAccessibilityOn(kObject14, 7, 7);
+			break;
+
+		case 3:
+			_app->rotationSetFreOff(_app->getCurrentRotationId());
+			_app->objectPresentationHide(kObject14);
+			_app->objectSetAccessibilityOff(kObject14);
+			_app->varSetByte(97002, 0);
+			_app->objectPresentationHideAndRemove(kObject14);
+			_app->setSpace((ZoneId)_app->varGetWord(97013));
+
+			if (!_app->getSaveManager()->loadSave("Rabbit", kLoadSaveWrite)) {
+				_app->exitToMenu(kMenuAction10);
+				return;
+			}
+
+			_app->puzzleSetMod(kPuzzleMenu, 1, 0);
+			_app->sub_460150(2);
+			break;
+
+		case 4:
+			// Resume
+			_app->setSpace((ZoneId)_app->varGetWord(97013));
+			_app->puzzleSetMod(kPuzzleMenu, 1, 0);
+			_app->rotationSetFreOff(_app->getCurrentRotationId());
+			_app->objectPresentationHide(kObject14);
+			_app->objectSetAccessibilityOff(kObject14);
+			_app->varSetByte(97002, 0);
+			_app->objectPresentationHideAndRemove(kObject14);
+			break;
+
+		case 5: {
+			// Next page
+			_app->objectSetAccessibilityOn(kObject14, 6, 6);
+			_app->soundPlay(90005);
+
+			int32 lastPage = 2 * _app->getSaveManager()->getData()->progressState - 2;
+			if ((int8)_app->varGetByte(97012) >= lastPage)
+				break;
+
+			_app->varSetByte(97012, _app->varGetByte(97012) + 1);
+			int8 page = (int8)_app->varGetByte(97012);
+			_app->objectPresentationHide(kObject14, (uint32)(page + 21));
+			_app->objectPresentationShow(kObject14, (uint32)(page + 22));
+
+			if (page == lastPage)
+				_app->objectSetAccessibilityOff(kObject14, 5, 5);
+			}
+			break;
+
+		case 6: {
+			// Previous page
+			_app->objectSetAccessibilityOn(kObject14, 5, 5);
+			_app->soundPlay(90004);
+
+			if ((int8)_app->varGetByte(97012) <= 1)
+				break;
+
+			_app->varSetByte(97012, _app->varGetByte(97012) - 1);
+			int8 page = (int8)_app->varGetByte(97012);
+			_app->objectPresentationHide(kObject14, (uint32)(page + 23));
+			_app->objectPresentationShow(kObject14, (uint32)(page + 22));
+
+			if (page == 1)
+				_app->objectSetAccessibilityOff(kObject14, 6, 6);
+			}
+			break;
+
+		case 99:
+			_app->objectPresentationHide(kObject14);
+			_app->objectSetAccessibilityOff(kObject14);
+			_app->varSetByte(97002, 0);
+			_app->objectPresentationHideAndRemove(kObject14);
+			showMainMenu(true);
+			break;
+		}
+		break;
+
+	case kObject17:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			return;
+		}
+
+		_app->objectPresentationHide(kObject17);
+		_app->objectSetAccessibilityOff(kObject17);
+		_app->puzzleSetMod(kPuzzleMenu, 1, 0);
+		break;
+
+	case kObject19:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			return;
+		}
+
+		_app->varSetByte(49000, 1);
+		_app->varSetByte(49003, 1);
+		break;
+
+	case kObject20:
+		switch (target) {
+		default:
+			// Close
+			if (_app->varGetDword(90027) > 0)
+				_app->rotationSetFreOff(_app->varGetDword(90027));
+
+			_app->soundStopType(kSoundTypeDialog, 1024);
+
+			if (_app->varGetDword(90027) == 111206)
+				_app->soundPlay(112035);
+
+			_app->objectPresentationHide(kObject11);
+			_app->objectSetAccessibilityOff(kObject20);
+
+			if (_app->varGetByte(111000) == 1)
+				_app->objectSetAccessibilityOn(kObject20, 0, 0);
+
+			_app->objectSetAccessibilityOff(kObject114503);
+
+			if (target == 69)
+				_app->soundPlay(111079, kSoundLoop);
+			break;
+
+		case 11:
+		case 21:
+			_app->objectPresentationHide(kObject11);
+			_app->objectPresentationShow(kObject11, target == 11 ? 10 : 12);
+			_app->objectSetAccessibilityOff(kObject20);
+
+			if (_app->varGetByte(111000) == 1)
+				_app->objectSetAccessibilityOn(kObject20, 0, 0);
+
+			_app->objectSetAccessibilityOn(kObject20, 2, 2);
+
+			if (target == 11)
+				_app->objectSetAccessibilityOn(kObject20, 4, 5);
+			else
+				_app->objectSetAccessibilityOn(kObject20, 7, 8);
+
+			_app->soundPlay(112034);
+			break;
+
+		case 12:
+			_app->soundPlay(111090);
+			break;
+
+		case 22:
+			_app->soundPlay(111092);
+			break;
+
+		case 23:
+			_app->soundPlay(111093);
+			break;
+
+		case 31:
+			_app->soundPlay(111094);
+			break;
+
+		case 41:
+			_app->bagAdd(112013);
+			_app->varSetByte(112024, 1);
+			_app->soundPlay(112020);
+			_app->objectSetAccessibilityOff(kObject20, 10, 10);
+			_app->objectPresentationHide(kObject11);
+			_app->objectPresentationShow(kObject11, 15);
+			break;
+		}
+		break;
+
+	case kObjectPipe:
+		if (target == 0) {
+			_app->objectPresentationHide(kObject11);
+
+			if (_app->varGetByte(114522) == 1) {
+				_app->objectPresentationShow(kObject11, 17);
+				_app->objectSetAccessibilityOff(kObjectPipe, 0, 0);
+				_app->objectSetAccessibilityOn(kObjectPipe, 1, 1);
+				_app->varSetByte(114522, 2);
+			} else {
+				_app->objectPresentationShow(kObject11, 16);
+				_app->varSetByte(114522, 1);
+				_app->objectSetAccessibilityOff(kObjectPipe, 1, 1);
+				_app->objectSetAccessibilityOn(kObjectPipe, 0, 0);
+			}
+
+			_app->soundPlay(112019);
+		} else if (target == 9) {
+			_app->puzzleSetMod(kPuzzleMenu, 1, 0);
+			_app->objectPresentationHide(kObject11);
+			_app->objectPresentationHide(kObject11);
+			_app->objectSetAccessibilityOff(kObjectPipe);
+			_app->varSetByte(114522, 0);
+		}
+		break;
+
+	case kObject22:
+		// Radio tuning knob (zone 14)
+		if (_app->varGetByte(114101) <= 0 || _app->varGetByte(114100) <= 0)
+			break;
+
+		_app->objectPresentationHide(kObject12, 2);
+
+		if (_app->varGetByte(114101) == 2) {
+			_app->objectPresentationHide(kObject12);
+			_app->objectSetAccessibilityOff(kObject22);
+
+			if (_app->varGetByte(114100) == 1) {
+				_app->objectPresentationShow(kObject12, 3);
+				_app->soundPlay(111040);
+			} else {
+				_app->objectSetAccessibilityOff(kObject114027);
+				_app->objectSetAccessibilityOff(kObject114028);
+				_app->objectSetAccessibilityOff(kObject114026);
+				_app->objectSetAccessibilityOn(kObject114027, 1, 1);
+				_app->objectSetAccessibilityOn(kObject114027, 5, 5);
+				_app->objectPresentationShow(kObject114027, 3);
+				_app->varSetByte(114527, 1);
+			}
+		} else if (point.x < 350) {
+			_app->objectPresentationHide(kObject12, 2);
+			_app->objectPresentationHide(kObject12, 1);
+			_app->objectSetAccessibilityOff(kObject22);
+			handleEvents();
+			_app->sub_468290(1);
+		}
+
+		_app->varSetByte(114101, 0);
+		break;
+
+	case kObject23:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			return;
+		}
+
+		if (target == 99) {
+			_app->puzzleSetMod(kPuzzleMenu, 1, 0);
+			_app->objectPresentationHideAndRemove(kObjectCodingWheel);
+			_app->objectSetAccessibilityOff(kObject23);
+			_app->varSetByte(114520, 0);
+		}
+		break;
+
+	case kObject55:
+		// Insert CD prompt
+		_app->objectPresentationHide(kObject55, 0);
+
+		if (target == 99) {
+			_app->_slot = -1;
+			_jukeboxIndex = 1;
+			_chapterIndex = 0;
+
+			if (_app->getCurrentGameZone())
+				_app->puzzleSetActive(kPuzzleGeneralMenu);
+			else
+				_app->startMenu(false);
+
+			_chapterIndex = 0;
+		} else {
+			// The original reads the number of the CD in the drive from data/cd.ini and
+			// does nothing if it isn't the one holding the episode. All the CDs are
+			// installed here, so the episode is always available.
+			_app->setCurrentEpisode((ZoneId)target);
+			_app->setZone((ZoneId)target, _app->getSaveManager()->getSetupType());
+		}
+		break;
+
+	case 90911:
+		// The original calls 0x472d70, which reactivates a stored puzzle or rotation
+		// (like Pompeii's restore()). Faust never stores one, so it does nothing.
+		break;
+
+	case kObject99000:
+		// Start / continue
+		hideMainMenuButtons();
+
+		if (_app->varGetByte(98001) == 0) {
+			_app->varSetByte(98001, 1);
+
+			if (_app->getSaveManager()->getData()->progressState == kProgressStateNone)
+				_app->getSaveManager()->getData()->progressState = kProgressState1;
+
+			_app->setupZone(kZone7, (SetupType)20000);
+			showMainMenu(false);
+		} else {
+			_app->fadeOut(15, Color(0, 0, 0), 0);
+			_app->exitToMenu(kMenuAction1);
+		}
+		break;
+
+	case kObject99001:
+		// Load screen
+		_app->soundPlay(90801);
+		_app->varSetByte(98003, 1);
+		hideMainMenuButtons();
+		_app->objectPresentationHide(kObject99010, 0);
+		_app->objectPresentationShow(kObject99001, 0);
+		_app->objectPresentationShow(kObject99001, 2);
+		_app->objectSetAccessibilityOff(kObject99010);
+
+		if ((int8)_app->varGetByte(98001) <= _app->getSaveManager()->getData()->progressState) {
+			_app->objectSetAccessibilityOn(kObject99021);
+			_app->objectPresentationShow(kObject99021, 2);
+		} else {
+			_app->objectPresentationShow(kObject99021, 1);
+		}
+
+		_app->objectSetAccessibilityOn(kObject99022);
+		_app->objectPresentationShow(kObject99022, 2);
+		_app->objectPresentationShow(kObject99023, 1);
+		_app->objectPresentationShow(kObject99601, 1);
+		_name.clear();
+		_app->objectPresentationSetTextToPuzzle(kObject99601, 1, 0, _name);
+		_app->visualListSetOn(4, kPuzzleGeneralMenu);
+		_app->loadSaveList(4, kPuzzleGeneralMenu);
+		// The original also points the list icons to Data/Save/<user>/ (the save thumbnails)
+		break;
+
+	case kObject99002: {
+		// Save screen
+		_app->soundPlay(90802);
+		_app->varSetByte(98004, 1);
+		hideMainMenuButtons();
+		_app->objectPresentationHide(kObject99010, 0);
+		_app->objectPresentationShow(kObject99002, 0);
+		_app->objectPresentationShow(kObject99002, 2);
+		_app->objectSetAccessibilityOff(kObject99010);
+		_app->objectSetAccessibilityOn(kObject99024);
+		_app->objectPresentationShow(kObject99024, 2);
+		_app->objectPresentationShow(kObject99025, 2);
+		_app->objectSetAccessibilityOn(kObject99025);
+
+		// The original writes data/SY/Image/osc.bmp and copies it next to the savegame
+		if (_app->getThumbnail()) {
+			ImageSurface *thumbnail = _app->getThumbnail()->zoom(0.25f, 0.22f);
+			_app->getSaveManager()->setThumbnail(thumbnail);
+			delete thumbnail;
+		} else {
+			warning("[ZoneSystemFaust::onButtonUp] Save pressed with no thumbnail image");
+		}
+
+		_app->objectPresentationShow(kObject99601);
+		_app->objectPresentationSetImageCoordinatesOnPuzzle(kObject99601, 2, Common::Point(240, 82));
+		_name.clear();
+		_app->objectPresentationSetTextToPuzzle(kObject99601, 1, 0, _name);
+		uint32 width = _app->objectPresentationGetTextWidth(kObject99601, 1, 0);
+		_app->objectPresentationSetAnimationCoordinatesOnPuzzle(kObject99601, 0, Common::Point((int16)(width + 233), 382));
+		_app->visualListSetOn(1, kPuzzleGeneralMenu);
+		_app->loadSaveList(1, kPuzzleGeneralMenu);
+		}
+		break;
+
+	case kObject99003:
+		// Preferences
+		_app->soundPlay(90803);
+		_app->varSetByte(98005, 1);
+		hideMainMenuButtons();
+		_app->objectPresentationHide(kObject99010, 0);
+		_app->objectPresentationShow(kObject99003, 0);
+		_app->objectPresentationShow(kObject99003, 2);
+		_app->objectSetAccessibilityOff(kObject99010);
+		_app->objectSetAccessibilityOn(kObject99041);
+		_app->objectPresentationShow(kObject99041, 2);
+		_app->objectPresentationShow(kObject99042, 2);
+		_app->objectSetAccessibilityOn(kObject99042);
+
+		if (_app->getPreferenceHandler()) {
+			// The original stores 75..100 (4 * pref - 300 gives slider space); our handler already runs 0..100
+			_prefsVolume        = _app->getPreferenceHandler()->getVolume();
+			_prefsVolumeDialog  = _app->getPreferenceHandler()->getVolumeDialog();
+			_prefsReverseStereo = (_app->getPreferenceHandler()->getReverseStereo() == 1);
+			_prefsSubtitles     = _app->getPreferenceHandler()->getShowSubtitles();
+		} else {
+			_prefsVolume        = 100;
+			_prefsVolumeDialog  = 100;
+			_prefsReverseStereo = false;
+			_prefsSubtitles     = true;
+		}
+
+		_app->objectPresentationHide(kObject99043);
+		_app->objectSetAccessibilityOn(kObject99043);
+		_app->objectPresentationHide(kObject99044);
+		_app->objectSetAccessibilityOn(kObject99044);
+		_app->objectSetAccessibilityOn(kObject99045);
+		_app->objectSetAccessibilityOn(kObject99046);
+
+		if (!g_system->getMixer()->isReady()) {
+			_prefsSubtitles = true;
+			_app->objectSetAccessibilityOff(kObject99043);
+			_app->objectSetAccessibilityOff(kObject99044);
+			_app->objectSetAccessibilityOff(kObject99045);
+			_app->objectSetAccessibilityOff(kObject99046);
+		}
+
+		_app->objectPresentationShow(kObject99043, _prefsSubtitles ? 1 : 0);
+		_app->objectPresentationShow(kObject99044, _prefsReverseStereo ? 1 : 0);
+		_app->objectPresentationSetImageCoordinatesOnPuzzle(kObject99045, 0, 0, Common::Point(getSliderKnobX(_prefsVolume), 164));
+		_app->objectPresentationShow(kObject99045, 0);
+		_app->objectPresentationSetImageCoordinatesOnPuzzle(kObject99046, 0, 0, Common::Point(getSliderKnobX(_prefsVolumeDialog), 210));
+		_app->objectPresentationShow(kObject99046, 0);
+
+		_prefsVolumeBackup        = _prefsVolume;
+		_prefsVolumeDialogBackup  = _prefsVolumeDialog;
+		_prefsReverseStereoBackup = _prefsReverseStereo;
+		_prefsSubtitlesBackup     = _prefsSubtitles;
+		break;
+
+	case kObject99004:
+		// Quit: the original posts WM_CLOSE, which shows the confirmation when 98006 is set
+		_app->soundPlay(90804);
+		_app->varSetByte(98006, 1);
+		if (_app->puzzleSetMod(kPuzzleMenu, 2, 2)) {
+			_app->objectPresentationShow(kObjectYesNo, 0);
+			_app->objectSetAccessibilityOn(kObjectYesNo);
+		}
+		break;
+
+	case kObject99005:
+		// Progress summary
+		_app->varSetByte(98007, 1);
+		hideMainMenuButtons();
+		_app->objectPresentationHide(kObject99010, 0);
+		_app->objectPresentationShow(kObject99005, 0);
+		_app->objectSetAccessibilityOff(kObject99010);
+		_app->objectPresentationHide(kObject99010);
+		_app->objectPresentationShow(kObject99005, (uint32)(_app->varGetByte(98001) + 1));
+		_app->objectPresentationShow(kObject99097, 2);
+		_app->objectSetAccessibilityOn(kObject99097);
+		break;
+
+	case kObject99006:
+		// Chapter selection
+		_app->varSetByte(98008, 1);
+		hideMainMenuButtons();
+		_app->objectPresentationHide(kObject99010, 0);
+		_app->objectPresentationShow(kObject99006, 0);
+		_app->objectPresentationShow(kObject99070, 0);
+		_app->objectPresentationShow(kObject99006, 2);
+		_app->objectSetAccessibilityOff(kObject99010);
+		_app->objectPresentationHide(kObject99010);
+		_app->objectPresentationShow(kObject99097, 2);
+		_app->objectSetAccessibilityOn(kObject99097);
+		_app->objectPresentationShow(kObject99071, (uint32)_chapterIndex);
+		_app->objectSetAccessibilityOn(kObject99071);
+
+		if (_app->getSaveManager()->getData()->progressState > kProgressState1) {
+			_app->objectSetAccessibilityOn(kObject99010);
+			_app->objectPresentationShow(kObject99010);
+		}
+		break;
+
+	case kObject99007:
+		// Jukebox
+		_app->varSetByte(98009, 1);
+		hideMainMenuButtons();
+		_app->objectPresentationHide(kObject99010, 0);
+		_app->objectPresentationShow(kObject99007, 0);
+		_app->objectPresentationShow(kObject99080, 0);
+		_jukeboxIndex = 10;
+		_app->objectPresentationShow(kObject99081, 9);
+		_app->objectPresentationShow(kObject99007, 2);
+		_app->objectPresentationShow(kObject99097, 2);
+		_app->objectSetAccessibilityOn(kObject99097);
+		break;
+
+	case kObject99008:
+		// Progress animation
+		_app->varSetByte(98010, 1);
+		hideMainMenuButtons();
+		_app->objectPresentationHide(kObject99010, 0);
+		_app->objectPresentationUnpauseAnimation(kObject99090, 0);
+
+		if (_app->getSaveManager()->getData()->progress > 0) {
+			_app->objectPresentationSetAnimationOnPuzzle(kObject99090, 0, 0, 2);
+			_app->objectPresentationShow(kObject99090, 0);
+		}
+
+		_app->objectPresentationShow(kObject99008, 0);
+		_app->objectSetAccessibilityOff(kObject99010);
+		_app->objectPresentationHide(kObject99010);
+		_app->objectPresentationShow(kObject99008, 2);
+		_app->objectPresentationShow(kObject99097, 2);
+		_app->objectSetAccessibilityOn(kObject99097);
+		break;
+
+	case kObject99009:
+		// Bonus
+		_app->varSetByte(98011, 1);
+		hideMainMenuButtons();
+		_app->objectPresentationHide(kObject99010, 0);
+		_app->objectPresentationShow(kObject99009, 0);
+		_app->objectSetAccessibilityOff(kObject99010);
+		_app->objectPresentationHide(kObject99010);
+		_app->objectPresentationShow(kObject99009, 2);
+		_app->objectPresentationShow(kObject99091);
+		_app->objectSetAccessibilityOn(kObject99091);
+		_app->objectPresentationShow(kObject99097, 2);
+		_app->objectSetAccessibilityOn(kObject99097);
+		break;
+
+	case kObject99010:
+		// Left / right arrows
+		if (_app->varGetByte(98009) > 0) {
+			onJukebox(target);
+			break;
+		}
+
+		if (_app->varGetByte(98008) > 0) {
+			if (target == 0)
+				--_chapterIndex;
+			else if (target == 1)
+				++_chapterIndex;
+
+			// Last chapter unlocked by each progress state
+			static const int8 lastChapters[] = { 0, 5, 7, 12, 17, 20, 26, 31 };
+			int32 progressState = _app->getSaveManager()->getData()->progressState;
+			int8 lastChapter = (progressState >= 1 && progressState <= 8) ? lastChapters[progressState - 1] : 0;
+
+			if (_chapterIndex < 0)
+				_chapterIndex = lastChapter;
+			else if (_chapterIndex > lastChapter)
+				_chapterIndex = 0;
+
+			_app->objectPresentationHide(kObject99071);
+			_app->objectPresentationShow(kObject99071, (uint32)_chapterIndex);
+			break;
+		}
+
+		{
+			// Selected progress state
+			int8 slot = (int8)_app->varGetByte(98001);
+			if (target == 0)
+				--slot;
+			else if (target == 1)
+				++slot;
+
+			if (slot < 0)
+				slot = 7;
+			else if (slot > 7)
+				slot = 0;
+
+			_app->varSetByte(98001, slot);
+			showMainMenu(false);
+		}
+		break;
+
+	case kObject99021:
+		// Load screen: start the selected progress state
+		_app->objectPresentationHide(kObject99001);
+		hideMenuButtons(kObject99021, kObject99025);
+		_app->exitToMenu(kMenuAction3);
+		break;
+
+	case kObject99022:
+		// Load screen: cancel
+		_app->objectPresentationHide(kObject99001);
+		hideMenuButtons(kObject99021, kObject99025);
+		_app->objectPresentationHide(kObject99601);
+		_app->varSetByte(98004, 0);
+		_app->visualListSetOff(4, kPuzzleGeneralMenu);
+		_app->visualListRemove(4, kPuzzleGeneralMenu, true);
+		_app->varSetByte(98003, 0);
+		showMainMenu(true);
+		break;
+
+	case kObject99023:
+		// Load screen: load the selected savegame
+		_app->objectPresentationHide(kObject99001);
+		hideMenuButtons(kObject99021, kObject99025);
+		_app->exitToMenu(kMenuAction0);
+		break;
+
+	case kObject99024:
+	case kObject99025:
+		// Save screen: cancel / save
+		_app->objectPresentationHide(kObject99002);
+		hideMenuButtons(kObject99021, kObject99025);
+
+		if (id == kObject99025 && !_app->getSaveManager()->saveAs(_name)) {
+			_app->messageFormat("CanNotSaveGame", _name);
+			_app->messageShowWarning(0);
+			return;
+		}
+
+		_app->objectPresentationHide(kObject99601);
+		_app->varSetByte(98004, 0);
+		_app->visualListSetOff(1, kPuzzleGeneralMenu);
+		_app->visualListRemove(1, kPuzzleGeneralMenu, true);
+		_app->varSetByte(98004, 0);
+		showMainMenu(true);
+		break;
+
+	case kObject99041:
+	case kObject99042:
+		// Preferences: cancel / ok
+		_app->objectPresentationHide(kObject99003);
+		hideMenuButtons(kObject99041, kObject99046);
+		_app->varSetByte(98005, 0);
+
+		if (id == kObject99042) {
+			showMainMenu(true);
+			break;
+		}
+
+		_app->objectSetAccessibilityOn(kObject99010);
+
+		// The original passes the slider values to the preference file unconverted
+		// here (unlike every other save), so restore and convert them properly
+		_prefsVolume        = _prefsVolumeBackup;
+		_prefsVolumeDialog  = _prefsVolumeDialogBackup;
+		_prefsReverseStereo = _prefsReverseStereoBackup;
+		_prefsSubtitles     = _prefsSubtitlesBackup;
+		savePreferences();
+		showMainMenu(false);
+		break;
+
+	case kObject99043:
+		_prefsSubtitles = !_prefsSubtitles;
+		_app->objectPresentationHide(kObject99043);
+		_app->objectPresentationShow(kObject99043, _prefsSubtitles ? 1 : 0);
+		savePreferences();
+		break;
+
+	case kObject99044:
+		_prefsReverseStereo = !_prefsReverseStereo;
+		_app->objectPresentationHide(kObject99044);
+		_app->objectPresentationShow(kObject99044, _prefsReverseStereo ? 1 : 0);
+		savePreferences();
+		break;
+
+	case kObject99071: {
+		// Chapter selection: start the chapter
+		_app->soundStopType(kSoundTypeAmbientMusic, 1024);
+		_app->soundStopType(kSoundTypeBackgroundMusic, 1024);
+
+		// First chapter index of each zone
+		static const struct {
+			int8 firstChapter;
+			ZoneId zone;
+			SetupType type;
+		} chapters[] = {
+			{ 27, kZone8, (SetupType)30000 },
+			{ 21, kZone7, (SetupType)30000 },
+			{ 18, kZone6, (SetupType)30000 },
+			{ 13, kZone5, (SetupType)30000 },
+			{  8, kZone4, (SetupType)30000 },
+			{  6, kZone3, (SetupType)30000 },
+			{  1, kZone2, (SetupType)30000 },
+			{  0, kZone7, (SetupType)20000 }
+		};
+
+		if (_chapterIndex >= 0 && _chapterIndex <= 31) {
+			for (uint32 i = 0; i < ARRAYSIZE(chapters); i++) {
+				if (_chapterIndex >= chapters[i].firstChapter) {
+					_app->setupZone(chapters[i].zone, chapters[i].type);
+					break;
+				}
+			}
+		}
+
+		_jukeboxIndex = 1;
+		}
+		break;
+
+	case kObject99091:
+		// Bonus scenes
+		_app->soundStopType(kSoundTypeAmbientMusic, 1024);
+		_app->soundStopType(kSoundTypeBackgroundMusic, 1024);
+
+		switch (target) {
+		default:
+			_jukeboxIndex = 1;
+			break;
+
+		case 1:
+			_app->varSetByte(98014, 1);
+			_app->setupZone(kZone2, kSetupType9);
+			break;
+
+		case 2:
+			_app->varSetByte(98015, 1);
+			_app->setupZone(kZone7, (SetupType)30002);
+			break;
+
+		case 3:
+			_app->varSetByte(98016, 1);
+			_app->setupZone(kZone8, kSetupType99);
+			break;
+		}
+		break;
+
+	case kObject99097:
+		// Back from the extra screens
+		if (_app->varGetByte(98007) == 1) {
+			_app->objectPresentationHide(kObject99005);
+			_app->objectPresentationHide(kObject99097);
+			_app->objectSetAccessibilityOff(kObject99097);
+			_app->varSetByte(98007, 0);
+		} else if (_app->varGetByte(98008) == 1) {
+			_app->objectPresentationHideAndRemove(kObject99070);
+			_app->objectPresentationHideAndRemove(kObject99071);
+			_app->objectPresentationHide(kObject99006);
+			_app->objectPresentationHide(kObject99097);
+			_app->objectSetAccessibilityOff(kObject99071);
+			_app->objectSetAccessibilityOff(kObject99097);
+			_app->varSetByte(98008, 0);
+		} else if (_app->varGetByte(98009) == 1) {
+			// Restore the volumes the jukebox set to 100
+			_app->soundSetVolume(41001, 90);
+			_app->soundSetVolume(13054, 85);
+			_app->soundSetVolume(13055, 80);
+			_app->soundSetVolume(17019, 85);
+			_app->soundSetVolume(31003, 90);
+			_app->soundSetVolume(52000, 90);
+			_app->soundSetVolume(81107, 90);
+			_app->soundSetVolume(81223, 90);
+			_app->soundSetVolume(81310, 90);
+			_app->soundSetVolume(112074, 90);
+			_app->soundSetVolume(90708, 90);
+			_app->soundSetVolume(310105, 100);
+			_app->objectPresentationHideAndRemove(kObject99080);
+			_app->objectPresentationHideAndRemove(kObject99081);
+			_app->objectPresentationHide(kObject99007);
+			_app->objectPresentationHide(kObject99097);
+			_app->objectSetAccessibilityOff(kObject99097);
+			_app->varSetByte(98009, 0);
+		} else if (_app->varGetByte(98010) == 1) {
+			_app->objectPresentationHideAndRemove(kObject99090);
+			_app->objectPresentationHide(kObject99008);
+			_app->objectPresentationHide(kObject99097);
+			_app->objectSetAccessibilityOff(kObject99097);
+			_app->varSetByte(98010, 0);
+		} else if (_app->varGetByte(98011) == 1) {
+			_app->objectPresentationHide(kObject99009);
+			_app->objectPresentationHide(kObject99091);
+			_app->objectPresentationHide(kObject99097);
+			_app->objectSetAccessibilityOff(kObject99097);
+			_app->objectSetAccessibilityOff(kObject99091);
+			_app->varSetByte(98011, 0);
+		}
+
+		showMainMenu(true);
+		break;
+
+	case kObject99100: {
+		// Plays the closing music of the selected progress state
+		static const struct {
+			ZoneId zone;
+			Id sound;
+		} music[] = {
+			{ kZone7,  41000 },
+			{ kZoneSY, 0     },
+			{ kZone12, 81037 },
+			{ kZoneSY, 0     },
+			{ kZone9,  61300 },
+			{ kZoneSY, 0     },
+			{ kZone8,  53131 }
+		};
+
+		_app->soundStopType(kSoundTypeDialog, 1024);
+
+		int8 slot = (int8)_app->varGetByte(98001);
+		if (slot >= 1 && slot <= 7 && music[slot - 1].sound) {
+			_app->setCurrentZone(music[slot - 1].zone);
+			_app->soundPlay(music[slot - 1].sound);
+		}
+
+		_app->setCurrentZone(kZoneSY);
+		}
+		break;
+
+	case kObject99500:
+		// Login
+		if (target == 0) {
+			_app->varSetByte(98006, 1);
+			if (_app->puzzleSetMod(kPuzzleMenu, 2, 2)) {
+				_app->objectPresentationShow(kObjectYesNo, 0);
+				_app->objectSetAccessibilityOn(kObjectYesNo);
+			}
+		} else if (target == 1) {
+			onLogin();
+		}
+		break;
+	}
+}
+
+// 0x45ed80 jump table: the question dialog (object 4). Even targets are "yes", odd ones "no".
+void ZoneSystemFaust::onQuestion(Id target) {
+	uint32 question = 0;
+	int8 slot = (int8)_app->varGetByte(98001);
+
+	switch (target) {
+	default:
+		break;
+
+	case 2:
+		// Restart
+		_app->cursorSelect(kCursorBusy);
+		unsetFlag();
+		handleEvents();
+		_app->exitZone();
+		_app->initZones();
+		// Fallback to next case
+
+	case 3:
+		question = 2;
+		break;
+
+	case 4:
+	case 8: {
+		// Delete savegame (4: save screen, 8: load screen)
+		question = target;
+		Id visualId = (target == 4) ? 1 : 4;
+
+		ObjectId objectId = _app->visualListGetObjectIdClicked(visualId, kPuzzleGeneralMenu);
+		if (!objectId)
+			break;
+
+		Common::String name = _app->getObject(objectId)->getName();
+		if (!_app->getSaveManager()->deleteSavegame(name)) {
+			warning("[ZoneSystemFaust::onQuestion] Cannot remove saved game: %s", name.c_str());
+			break;
+		}
+
+		_app->visualListResetObjectClicked(visualId, kPuzzleGeneralMenu);
+		_app->visualListRemove(visualId, kPuzzleGeneralMenu, objectId, true);
+
+		_name.clear();
+		_app->objectPresentationSetTextToPuzzle(kObject99601, 1, 0, _name);
+		uint32 width = _app->objectPresentationGetTextWidth(kObject99601, 1, 0);
+		if (target == 4)
+			_app->objectPresentationSetAnimationCoordinatesOnPuzzle(kObject99601, 0, Common::Point((int16)(width + 233), 384));
+		else
+			_app->objectPresentationSetAnimationCoordinatesOnPuzzle(kObject99601, 0, Common::Point((int16)(width + 195), 388));
+		}
+		break;
+
+	case 5:
+	case 9:
+		question = target - 1;
+		break;
+
+	case 6: {
+		// Delete user
+		question = 6;
+
+		ObjectId objectId = _app->visualListGetObjectIdClicked(3, kPuzzlePreferences);
+		if (!objectId)
+			break;
+
+		Common::String name = _app->getObject(objectId)->getName();
+		if (!_app->getSaveManager()->deleteUser(name)) {
+			warning("[ZoneSystemFaust::onQuestion] Cannot remove saves for: %s", name.c_str());
+			break;
+		}
+
+		_app->visualListResetObjectClicked(3, kPuzzlePreferences);
+		_app->visualListRemove(3, kPuzzlePreferences, objectId, true);
+		}
+		break;
+
+	case 7:
+		question = 6;
+		break;
+	}
+
+	_app->varSetByte(98001, slot);
+	_app->messageHideQuestion(question);
+}
+
+// 0x45d698: jukebox arrows (13 tracks, track 2 is skipped)
+void ZoneSystemFaust::onJukebox(Id target) {
+	if (target == 0)
+		--_jukeboxIndex;
+	else if (target == 1)
+		++_jukeboxIndex;
+
+	if (_jukeboxIndex < 1)
+		_jukeboxIndex = 13;
+	else if (_jukeboxIndex > 13)
+		_jukeboxIndex = 1;
+	else if (_jukeboxIndex == 2 && target <= 1)
+		_jukeboxIndex = (target == 0) ? 1 : 3;
+
+	_app->objectPresentationHide(kObject99081);
+	_app->objectPresentationShow(kObject99081, (uint32)(_jukeboxIndex - 1));
+	_app->soundStopType(kSoundTypeAmbientMusic, 1024);
+	_app->soundStopType(kSoundTypeBackgroundMusic, 1024);
+
+	static const struct {
+		ZoneId zone;
+		Id sound;
+	} tracks[] = {
+		{ kZone7,  41001  },
+		{ kZoneSY, 0      },
+		{ kZone12, 81223  },
+		{ kZone14, 112074 },
+		{ kZone6,  31003  },
+		{ kZone12, 81107  },
+		{ kZoneSY, 90708  },
+		{ kZone4,  13054  },
+		{ kZone4,  13055  },
+		{ kZone12, 81310  },
+		{ kZone5,  17019  },
+		{ kZone16, 310105 },
+		{ kZone8,  52000  }
+	};
+
+	const Id sound = tracks[_jukeboxIndex - 1].sound;
+	if (sound) {
+		// Track 7 is a system zone sound, the original doesn't switch space for it
+		if (tracks[_jukeboxIndex - 1].zone != kZoneSY)
+			_app->setCurrentZone(tracks[_jukeboxIndex - 1].zone);
+
+		_app->soundSetVolume(sound, 100);
+		_app->soundPlay(sound, kSoundLoop);
+	}
+
+	_app->setCurrentZone(kZoneSY);
+}
+
+// 0x45e85e: login screen OK
+void ZoneSystemFaust::onLogin() {
+	if (_name.empty())
+		return;
+
+	if (_app->visualListIsIn(3, kPuzzlePreferences, _name)) {
+		_app->setUser(_name);
+	} else {
+		// The original creates Data/Save/userN/, adds it to user.aba and copies zero.aba and aPre.ini into it
+		if (!_app->getSaveManager()->createUser(_name))
+			warning("[ZoneSystemFaust::onLogin] Cannot create user: %s", _name.c_str());
+
+		_app->setUser(_name);
+		_app->getSaveManager()->saveProgress(kProgressStateNone);
+	}
+
+	_app->visualListRemove(3, kPuzzlePreferences, true);
+
+	_app->getSaveManager()->loadProgress();
+	SaveManager::SavegameData *data = _app->getSaveManager()->getData();
+	_app->varSetByte(98001, (byte)data->progressState);
+
+	// Keep the progress animation frame within the range of the progress state
+	static const struct {
+		int32 min;
+		int32 max;
+		int32 reset;
+	} ranges[] = {
+		{  0,  4,  0 },
+		{  4, 19,  4 },
+		{ 19, 29, 19 },
+		{ 29, 36, 29 },
+		{ 36, 42, 39 },
+		{ 42, 46, 42 },
+		{ 46, 50, 46 }
+	};
+
+	if (data->progressState == kProgressStateNone) {
+		_app->varSetByte(98001, 1);
+		data->progressState = kProgressState1;
+		data->progress = 0;
+	} else if (data->progressState >= kProgressState8) {
+		data->progress = 50;
+	} else {
+		int32 progress = (int8)data->progress;
+		const int32 i = data->progressState - 1;
+		if (progress < ranges[i].min || progress > ranges[i].max)
+			data->progress = ranges[i].reset;
+	}
+
+	if (_app->getPreferenceHandler())
+		_app->getPreferenceHandler()->load();
+	else
+		warning("[ZoneSystemFaust::onLogin] No preference handler");
+
+	_app->_currentGameZone = kZoneNone;
+	_app->_slot = -1;
+	_app->startMenu(false);
+	_jukeboxIndex = 1;
+	_chapterIndex = 0;
+}
+
+// 0x45b410
+void ZoneSystemFaust::hideMainMenuButtons() {
+	for (uint32 i = kObject99000; i <= kObject99009; i++) {
+		_app->objectSetAccessibilityOff((ObjectId)i);
+		_app->objectPresentationHide((ObjectId)i);
+		_app->objectPresentationShow((ObjectId)i, 1);
+	}
+
+	_app->objectSetAccessibilityOff(kObject14, 2, 2);
+	_app->objectSetAccessibilityOff(kObject99100);
+}
+
+// The tail shared by most screens (0x45c047 / 0x45c053)
+void ZoneSystemFaust::showMainMenu(bool enableArrows) {
+	if (enableArrows)
+		_app->objectSetAccessibilityOn(kObject99010);
+
+	_app->initMenuSave(false);
+	_app->initMenu2();
+	_app->initMenu3();
+}
+
+void ZoneSystemFaust::hideMenuButtons(ObjectId from, ObjectId to) {
+	for (int32 i = from; i <= to; i++) {
+		_app->objectSetAccessibilityOff((ObjectId)i);
+		_app->objectPresentationHide((ObjectId)i);
+	}
+}
+
+// In-game menu hint for the current progress state
+void ZoneSystemFaust::playHint(uint32 counterVar, int8 maxCount, Id baseSound) {
+	if ((int8)_app->varGetByte(counterVar) >= maxCount)
+		return;
+
+	// 97006 is set by timer 12, so each new hint is only given 5 minutes after the previous one
+	if (_app->varGetByte(97006) == 1) {
+		_app->varSetByte(counterVar, _app->varGetByte(counterVar) + 1);
+		_app->varSetByte(97006, 0);
+		_app->timerStart(kTimer12, 300000);
+	}
+
+	_app->soundPlay(baseSound + (int8)_app->varGetByte(counterVar));
+	_app->objectPresentationHide(kObject14, 8);
+	_app->objectPresentationShow(kObject14, 7);
 }
 
 void ZoneSystemFaust::onButtonDown(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {
@@ -1048,8 +2245,130 @@ void ZoneSystemFaust::onSound(Id id, SoundType type, uint32 a3, bool process) {
 	}
 }
 
-void ZoneSystemFaust::onBag(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, DragControl *dragControl, byte type) {
-	error("[ZoneSystemFaust::onBag] Not implemented");
+// FAUST.EXE 0x460d40: angle of the drag around its start point, clockwise from up (0..359)
+static int32 getDragAngle(DragControl *dragControl) {
+	// The original uses 180 / 3.14
+	const double radToDeg = 57.324840764331206;
+
+	int32 dx = dragControl->getCurrentCoords().x - dragControl->getCoords1().x;
+	int32 dy = dragControl->getCoords1().y - dragControl->getCurrentCoords().y;
+	double angle = dy ? atan((double)dx / dy) : 0.0;
+
+	if (dx == 0) {
+		if (dy > 0)
+			return 0;
+
+		return dy < 0 ? 180 : 0;
+	}
+
+	if (dx > 0) {
+		if (dy > 0)
+			return (int32)(angle * radToDeg);
+
+		if (dy == 0)
+			return 90;
+
+		return 180 - (int32)(angle * -radToDeg);
+	}
+
+	if (dy > 0)
+		return 360 - (int32)(angle * -radToDeg);
+
+	if (dy == 0)
+		return 270;
+
+	return 180 - (int32)(angle * -radToDeg);
+}
+
+// Preference slider: drag x -> value (0..100) -> knob x
+static int32 getSliderValue(DragControl *dragControl) {
+	return CLIP<int32>((int32)((dragControl->getCurrentCoords().x - 166.0) * 0.3225806451612903), 0, 100);
+}
+
+static int16 getSliderKnobX(int32 value) {
+	return (int16)(int32)((float)(value * 310 / 100) + 152.0f);
+}
+
+// FAUST.EXE 0x45ef10 (type: 1 = drag start, 2 = drag end, 3 = drag move)
+void ZoneSystemFaust::onBag(ObjectId id, Id, Id, uint32, DragControl *dragControl, byte type) {
+	switch (id) {
+	default:
+		return;
+
+	case kObject23:
+		// Coding wheel dial (36 positions)
+		switch (type) {
+		default:
+			break;
+
+		case 1:
+			_app->dragControlSetCoords1(Common::Point(320, 240));
+			_dialPosition = (int8)_app->varGetByte(114521);
+			_dialLastPosition = -1;
+			break;
+
+		case 2:
+			_app->varSetByte(114521, (byte)_dialPosition);
+			break;
+
+		case 3:
+			if (!_app->dragControlYEqual() && !_app->dragControlXEqual()) {
+				_dialPosition = getDragAngle(dragControl) * 35 / 360 + 1;
+
+				if (_dialLastPosition != _dialPosition) {
+					if (_dialPosition < 0)
+						_dialPosition += 36;
+
+					_app->objectPresentationHideAndRemove(kObjectCodingWheel);
+					if (_dialPosition < 36)
+						_app->objectPresentationShow(kObjectCodingWheel, (uint32)(35 - _dialPosition));
+					_app->soundPlay(112018);
+				}
+			}
+
+			_dialLastPosition = _dialPosition;
+			break;
+		}
+		return;
+
+	case kObject99045:
+		if (type == 1 || type == 3) {
+			_prefsVolume = getSliderValue(dragControl);
+			_app->objectPresentationSetImageCoordinatesOnPuzzle(kObject99045, 0, 0, Common::Point(getSliderKnobX(_prefsVolume), 164));
+		}
+		break;
+
+	case kObject99046:
+		switch (type) {
+		default:
+			break;
+
+		case 1:
+		case 3:
+			_prefsVolumeDialog = getSliderValue(dragControl);
+			_app->objectPresentationSetImageCoordinatesOnPuzzle(kObject99046, 0, 0, Common::Point(getSliderKnobX(_prefsVolumeDialog), 210));
+			if (type == 1)
+				_app->soundPlay(90800, kSoundLoop);
+			break;
+
+		case 2:
+			_app->soundStop(90800, 1024);
+			break;
+		}
+		break;
+	}
+
+	savePreferences();
+}
+
+void ZoneSystemFaust::savePreferences() {
+	if (!_app->getPreferenceHandler()) {
+		warning("[ZoneSystemFaust::savePreferences] AGV_preferences == NULL");
+		return;
+	}
+
+	// The original stores slider / 4 + 75; our handler maps 0..100 onto the ScummVM volume range
+	_app->getPreferenceHandler()->save(_prefsVolume, _prefsVolumeDialog, _prefsReverseStereo ? 1 : -1, _prefsSubtitles);
 }
 
 void ZoneSystemFaust::onUpdateBag(const Common::Point &point) {
@@ -1111,8 +2430,138 @@ void ZoneSystemFaust::onUpdateBag(const Common::Point &point) {
 	_app->objectPresentationHide(kObject55, 2);
 }
 
-void ZoneSystemFaust::onUpdateBefore(Id movabilityFrom, Id movabilityTo, uint32 movabilityIndex, Id target, const Common::Point &point) {
-	error("[ZoneSystemFaust::onUpdateBefore] Not implemented");
+// FAUST.EXE 0x45f330: mouse-over handler (movabilityFrom is the object id, movabilityTo the accessibility index)
+void ZoneSystemFaust::onUpdateBefore(Id movabilityFrom, Id movabilityTo, uint32, Id, const Common::Point &point) {
+	ObjectId id = (ObjectId)movabilityFrom;
+	Id target = movabilityTo;
+
+	if (id == kObject22) {
+		// Radio tuning knob (zone 14)
+		_app->objectPresentationSetImageCoordinatesOnPuzzle(kObject12, 1, point);
+
+		if (_app->varGetByte(114101) > 0) {
+			if (point.x < 333) {
+				_object22Volume = 0;
+
+				int32 distance = ABS(260 - point.y);
+				if (distance > 3)
+					_object22Volume = 2 * distance + 80;
+
+				if (point.x >= 245 || point.y <= 260) {
+					if (_object22Volume > 120) {
+						_app->objectPresentationHide(kObject12, 2);
+						_app->objectPresentationHide(kObject12, 1);
+						_app->objectSetAccessibilityOff(kObject22);
+						_app->objectSetAccessibilityOn(kObject22, 0, 0);
+						_app->varSetByte(114101, 0);
+						_app->soundStop(112016, 1024);
+						_app->sub_468290(1);
+						return;
+					}
+
+					if (_object22Volume > 100)
+						_object22Volume = 100;
+				} else {
+					_object22Volume = 0;
+				}
+			} else {
+				_object22Volume = 0;
+				_app->varSetByte(114101, 0);
+			}
+
+			_app->varSetByte(114101, (point.x < 245 && point.y > 336) ? 2 : 1);
+			_app->soundSetVolume(112016, (uint32)_object22Volume);
+		}
+
+		if (point.y > 410 && !_app->varGetByte(114101))
+			_app->sub_45FF30();
+
+		return;
+	}
+
+	if (id == kObject99010)
+		_app->objectPresentationShow(kObject99010, (uint32)(2 * target + 2));
+
+	// Menu buttons: only highlight the hovered one in each group
+	if (id >= kObject99000 && id <= kObject99009) {
+		for (uint32 i = kObject99000; i <= kObject99009; i++)
+			_app->objectPresentationHide((ObjectId)i, 0);
+		_app->objectPresentationShow(id, 0);
+	}
+
+	if (id >= kObject99021 && id <= kObject99025) {
+		for (uint32 i = kObject99021; i <= kObject99025; i++)
+			_app->objectPresentationHide((ObjectId)i, 0);
+		_app->objectPresentationShow(id, 0);
+	}
+
+	if (id >= kObject99041 && id <= kObject99042) {
+		for (uint32 i = kObject99041; i <= kObject99042; i++)
+			_app->objectPresentationHide((ObjectId)i, 0);
+		_app->objectPresentationShow(id, 0);
+	}
+
+	switch (id) {
+	default:
+		break;
+
+	case kObjectYesNo:
+		_app->objectPresentationHide(kObjectYesNo, 1);
+		_app->objectPresentationHide(kObjectYesNo, 2);
+		if (target == 0)
+			_app->objectPresentationShow(kObjectYesNo, 2);
+		else if (target == 1)
+			_app->objectPresentationShow(kObjectYesNo, 1);
+		break;
+
+	case kObject3:
+		_app->objectPresentationShow(kObject3, 1);
+		break;
+
+	case kObjectQuestion:
+		// Even accessibility indices are "yes", odd ones "no"
+		if (target % 2) {
+			_app->objectPresentationHide(kObjectQuestion, 1);
+			_app->objectPresentationShow(kObjectQuestion, 2);
+		} else {
+			_app->objectPresentationHide(kObjectQuestion, 2);
+			_app->objectPresentationShow(kObjectQuestion, 1);
+		}
+		break;
+
+	case kObject14:
+		_app->objectPresentationHide(kObject14, 2);
+		_app->objectPresentationHide(kObject14, 4);
+		_app->objectPresentationHide(kObject14, 6);
+		if (target == 0)
+			_app->objectPresentationShow(kObject14, 2);
+		else if (target == 1)
+			_app->objectPresentationShow(kObject14, 4);
+		break;
+
+	case kObject55:
+		_app->objectPresentationHide(kObject55, 0);
+		_app->objectPresentationHide(kObject55, 2);
+		_app->objectPresentationShow(kObject55, target == 99 ? 2 : 0);
+		break;
+
+	case kObject99091:
+		_app->objectPresentationHide(kObject99091, 1);
+		_app->objectPresentationHide(kObject99091, 2);
+		_app->objectPresentationHide(kObject99091, 3);
+		_app->objectPresentationShow(kObject99091, (uint32)target);
+		break;
+
+	case kObject99097:
+		_app->objectPresentationHide(kObject99097, 0);
+		_app->objectPresentationShow(kObject99097, 0);
+		break;
+
+	case kObject99500:
+		_app->objectPresentationHide(kObject99500);
+		_app->objectPresentationShow(kObject99500, target == 1 ? 0 : 1);
+		break;
+	}
 }
 
 void ZoneSystemFaust::onVisualList(Id id, uint32 type, const Common::Point &) {

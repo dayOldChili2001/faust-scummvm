@@ -128,7 +128,7 @@ load_movie:
 	}
 
 	// Init dialog
-	Common::String dialogPath = Common::String::format("DATA/%s/DIA/%s/%s", getApp()->getCurrentZoneFolder().c_str(), getApp()->getLanguageFolder().c_str(), filename.c_str());
+	Common::String dialogPath = Common::String::format("DATA/%s/DIA/%s/%s.dia", getApp()->getCurrentZoneFolder().c_str(), getApp()->getLanguageFolder().c_str(), filename.c_str());
 	if (!Common::File::exists(Common::Path(dialogPath, '/'))) {
 		_hasDialog = false;
 		return true;

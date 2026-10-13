@@ -293,6 +293,24 @@ Common::Array<SaveManager::SaveEntry *> *SaveManager::loadUsers() {
 	error("[SaveManager::loadUsers] Not implemented");
 }
 
+// TODO (chunk 5c): FAUST.EXE 0x45e8de creates Data/Save/userN/, adds it to user.aba and copies zero.aba and aPre.ini into it
+bool SaveManager::createUser(const Common::String &name) {
+	warning("[SaveManager::createUser] Not implemented (%s)", name.c_str());
+	return false;
+}
+
+// TODO (chunk 5c): FAUST.EXE 0x45a920
+bool SaveManager::deleteUser(const Common::String &name) {
+	warning("[SaveManager::deleteUser] Not implemented (%s)", name.c_str());
+	return false;
+}
+
+// TODO (chunk 5c): FAUST.EXE 0x45de81 copies the current savegame and thumbnail to a named entry in save.aba
+bool SaveManager::saveAs(const Common::String &name) {
+	warning("[SaveManager::saveAs] Not implemented (%s)", name.c_str());
+	return false;
+}
+
 void SaveManager::setThumbnail(ImageSurface *image) {
 	_header.setThumbnail(image->getSurface());
 }

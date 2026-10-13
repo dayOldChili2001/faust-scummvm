@@ -52,6 +52,35 @@ private:
 
 	// Name being typed in the user / savegame lists (global buffer at 0x4dc250 in FAUST.EXE)
 	Common::String _name;
+
+	// Preferences in slider space, 0..100 (globals 0x4dbf04, 0x4dc24c, 0x4dc350, 0x4dc018)
+	int32 _prefsVolume;
+	int32 _prefsVolumeDialog;
+	bool  _prefsReverseStereo;
+	bool  _prefsSubtitles;
+
+	// Values when the preferences screen was opened, restored on cancel (0x4dbf08, 0x4dc354, 0x4dc044, 0x4dbdf4)
+	int32 _prefsVolumeBackup;
+	int32 _prefsVolumeDialogBackup;
+	bool  _prefsReverseStereoBackup;
+	bool  _prefsSubtitlesBackup;
+
+	int32 _object22Volume;    // 0x4dc358
+	int32 _dialPosition;      // 0x4dbf00
+	int32 _dialLastPosition;  // 0x4dbf10
+
+	bool _object1Visible;     // 0x4c65fc
+	int8 _jukeboxIndex;       // 0x4dc042 (1..13)
+	int8 _chapterIndex;       // 0x4dbf0c
+
+	void savePreferences();
+	void hideMainMenuButtons();
+	void showMainMenu(bool enableArrows);
+	void hideMenuButtons(ObjectId from, ObjectId to);
+	void playHint(uint32 counterVar, int8 maxCount, Id baseSound);
+	void onQuestion(Id target);
+	void onJukebox(Id target);
+	void onLogin();
 };
 
 } // End of namespace Ring
