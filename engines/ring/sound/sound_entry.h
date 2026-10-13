@@ -29,8 +29,6 @@
 
 namespace Ring {
 
-class SoundLoader;
-
 class SoundEntry : public BaseObject {
 public:
 	SoundEntry(Id soundId, SoundType type, Common::String name, LoadFrom loadFrom, SoundFormat format);
@@ -91,27 +89,11 @@ public:
 	void stopAndClear() override;
 
 private:
-	SoundLoader   *_loader;
 	Audio::RewindableAudioStream *_audioStream;
-	uint32         _chunkSize;
-	int32          _size;
-	uint32         _bufferOffset;
-	//uint32         _deltaPlayCursor;
-	//uint32         _currentPlayCursor;
-	uint32         _field_14A;
-	uint32         _loop;
-	uint32         _field_152;
-	//uint32         _threadId;
-	//uint32         _event1;
-	//uint32         _event2;
-	bool           _isBufferPlaying;
-	//uint32         _event;
 	int32         _soundChunk;
 
-	bool loadData(SoundFormat format, const Common::String &path, int32 soundChunk);
-	void initSoundBuffer(const Common::String &path, int32 soundChunk, bool loop, SoundFormat format);
+	void initSoundBuffer(const Common::String &path, bool loop, SoundFormat format);
 	void stopAndReleaseSoundBuffer();
-	void loadDataChunk();
 };
 
 class SoundEntryData : public SoundEntry {

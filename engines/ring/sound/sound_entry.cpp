@@ -29,9 +29,6 @@
 #include "ring/helpers.h"
 #include "ring/ring.h"
 
-#include "audio/decoders/wave.h"
-
-#include "common/file.h"
 
 namespace Ring {
 
@@ -123,16 +120,7 @@ SoundFormat SoundEntry::getFormat(Common::String filename) {
 
 SoundEntryStream::SoundEntryStream(Id soundId, SoundType type, Common::String name, LoadFrom loadFrom, SoundFormat format, int32 soundChunk) : SoundEntry(soundId, type, name, loadFrom, format) {
 	_audioStream = nullptr;
-	_chunkSize = 0;
-	_size = 0;
-	_bufferOffset = 0;
-	_field_14A = 0;
-	_loop = 0;
-	_field_152 = 0;
-	_isBufferPlaying = false;
 	_soundChunk = soundChunk;
-
-	_loader = nullptr;
 }
 
 SoundEntryStream::~SoundEntryStream() {
@@ -145,14 +133,14 @@ void SoundEntryStream::play(bool loop) {
 
 	debugC(kRingDebugSound, "Playing sound: %s", path.c_str());
 
-	initSoundBuffer(path, _soundChunk, loop, _format);
+	initSoundBuffer(path, loop, _format);
 
 	// Rewind and play sound
 	stop();
 
 	if (_audioStream) {
 		_audioStream->rewind();
-		getSound()->getMixer()->playStream(Audio::Mixer::kPlainSoundType, &_handle, makeLoopingAudioStream(_audioStream, loop ? 0 : 1));
+		getSound()->getMixer()->playStream(Audio::Mixer::kPlainSoundType, &_handle, new Audio::LoopingAudioStream(_audioStream, loop ? 0 : 1, DisposeAfterUse::NO));
 
 		setVolumeAndPan();
 		_isPlaying = true;
@@ -170,33 +158,14 @@ void SoundEntryStream::stopAndClear() {
 	stopAndReleaseSoundBuffer();
 }
 
-void SoundEntryStream::initSoundBuffer(const Common::String &path, int32 soundChunk, bool loop, SoundFormat format) {
+void SoundEntryStream::initSoundBuffer(const Common::String &path, bool loop, SoundFormat format) {
 	stopAndReleaseSoundBuffer();
 
 	_loop = loop;
 
-	// Handle compressed sounds
-	if (format != kSoundFormatWAV) {
-		// TODO: WAC/WAS decompression (CompressedSound*::decompress) and loadDataChunk are not implemented yet
-		warning("[SoundEntryStream::initSoundBuffer] Compressed sounds are not supported yet, skipping %s", path.c_str());
-		return;
-
-		_loader = new SoundLoader(format);
-
-		if (loadData(format, path, soundChunk))
-			SAFE_DELETE(_loader);
-
-		return;
-	}
-
-	// Handle uncompressed wav file
-	SAFE_DELETE(_audioStream);
-
-	Common::SeekableReadStream *stream = SearchMan.createReadStreamForMember(Common::Path(path, '/'));
-	if (!stream)
-		error("[SoundEntryStream::initSoundBuffer] Cannot open stream to file (%s)", path.c_str());
-
-	_audioStream = Audio::makeWAVStream(stream, DisposeAfterUse::YES);
+	// The original streams the sound into a DirectSound buffer, _soundChunk seconds at a time.
+	// Audio streams are decoded on the fly by the mixer, so we don't need to.
+	_audioStream = makeSoundStream(path, format);
 }
 
 void SoundEntryStream::stopAndReleaseSoundBuffer() {
@@ -204,59 +173,7 @@ void SoundEntryStream::stopAndReleaseSoundBuffer() {
 		return;
 
 	stop();
-
-	// Close loader
-	if (_loader)
-		_loader->close();
-
-	SAFE_DELETE(_loader);
-
-	// Delete audiostream
 	SAFE_DELETE(_audioStream);
-}
-
-bool SoundEntryStream::loadData(SoundFormat format, const Common::String &path, int32 soundChunk) {
-	if (!_loader)
-		error("[SoundEntryStream::loadData] Loader not initialized properly");
-
-	if (_loader->load(path, this))
-		return true;
-
-	if (_loader->getType() != 1) { // PCM data
-		_loader->close();
-		return true;
-	}
-
-	if (_loader->getChunk()) {
-		_loader->close();
-		return true;
-	}
-
-	// Adjust entry size
-	if (soundChunk <= 0)
-		_size = -soundChunk;
-	else
-		_size = soundChunk * _loader->getSamplesPerSec() * _loader->getBlockAlign();
-
-	_size >>= 2;
-
-	if (_size % _loader->getBlockAlign())
-		_size += _loader->getBlockAlign() - _size % _loader->getBlockAlign();
-
-	_chunkSize = _size * 4;
-	_field_152 = 0;
-	_bufferOffset = 0;
-
-	// Load data chunk
-	loadDataChunk();
-
-	_field_14A = 0;
-
-	return false;
-}
-
-void SoundEntryStream::loadDataChunk() {
-	error("[SoundEntryStream::loadDataChunk] Not implemented");
 }
 
 #pragma endregion
@@ -276,9 +193,12 @@ void SoundEntryData::play(bool loop) {
 	if (!_audioStream)
 		preload();
 
+	if (!_audioStream)
+		return;
+
 	// Rewind and play sound
 	_audioStream->rewind();
-	getSound()->getMixer()->playStream(Audio::Mixer::kPlainSoundType, &_handle, makeLoopingAudioStream(_audioStream, loop ? 0 : 1));
+	getSound()->getMixer()->playStream(Audio::Mixer::kPlainSoundType, &_handle, new Audio::LoopingAudioStream(_audioStream, loop ? 0 : 1, DisposeAfterUse::NO));
 
 	setVolumeAndPan();
 	_isPlaying = !loop;
@@ -314,15 +234,9 @@ void SoundEntryData::unload() {
 }
 
 void SoundEntryData::initSoundBuffer(const Common::String &path) {
-	if (_audioStream)
-		delete _audioStream;
+	SAFE_DELETE(_audioStream);
 
-	// Open stream to file
-	Common::SeekableReadStream *stream = SearchMan.createReadStreamForMember(Common::Path(path, '/'));
-	if (!stream)
-		error("[SoundEntryData::initSoundBuffer] Cannot open stream to file (%s)", path.c_str());
-
-	_audioStream = Audio::makeWAVStream(stream, DisposeAfterUse::YES);
+	_audioStream = makeSoundStream(path, _format);
 }
 
 void SoundEntryData::stopAndReleaseSoundBuffer() {

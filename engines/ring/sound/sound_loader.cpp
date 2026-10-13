@@ -21,458 +21,278 @@
 
 #include "ring/sound/sound_loader.h"
 
-#include "ring/helpers.h"
-
 #include "audio/decoders/wave.h"
-#include "audio/decoders/raw.h"
 
 #include "common/archive.h"
+#include "common/endian.h"
 
 namespace Ring {
 
-#pragma region SoundResource
+// 8-byte Arxel header + 44-byte RIFF header
+static const uint32 kHeaderSize = 52;
 
-SoundResource::SoundResource() {
-	_buffer  = nullptr;
-	_currentPointer = nullptr;
-	_size    = 0;
-}
+// Number of samples in a WAC chunk
+static const uint32 kMonoChunkSamples = 256;
 
-SoundResource::~SoundResource() {
-	cleanup();
-}
+// Bit readers read 4 bytes at a time, so chunks are padded
+static const uint32 kChunkPadding = 4;
 
-void SoundResource::cleanup() {
-	SAFE_FREE(_buffer);
-	_currentPointer = nullptr;
-	_size = 0;
-}
+#pragma region CompressedSoundStream
 
-void SoundResource::add(void *data, uint32 dataSize) {
-	if (!_buffer)
-		error("[SoundResource::add] Buffer not initialized properly");
+CompressedSoundStream::CompressedSoundStream(Common::SeekableReadStream *stream, SoundFormat format) {
+	_stream       = stream;
+	_format       = format;
+	_isValid      = false;
+	_isStereo     = false;
+	_rate         = 0;
+	_totalSamples = 0;
+	_samplesRead  = 0;
+	_samplesPos   = 0;
+	_value        = 0;
+	_delta        = 0;
+	_lastSample   = 0;
 
-	if (data == nullptr)
-		error("[SoundResource::add] Invalid data pointer");
-
-	if (dataSize == 0)
-		error("[SoundResource::add] Invalid data size (cannot be 0)");
-
-	// Check if existing data is present
-	if (_size) {
-
-		// Create new buffer to hold the data
-		uint32 totalSize = _size + dataSize;
-		byte *buffer = (byte *)malloc(totalSize);
-		if (!buffer)
-			error("[SoundResource::add] Cannot reallocate memory for SoundResource buffer");
-
-		memcpy(buffer, _buffer, _size);
-		memcpy((byte*)(buffer + _size), data, dataSize);
-
-		cleanup();
-
-		_buffer = buffer;
-		_currentPointer = buffer;
-		_size = totalSize;
-
-	} else {
-		cleanup();
-
-		byte *buffer = (byte *)malloc(dataSize);
-		if (!buffer)
-			error("[SoundResource::add] Cannot allocate memory for SoundResource buffer");
-
-		memcpy(buffer, data, dataSize);
-
-		_buffer = buffer;
-		_currentPointer = buffer;
-		_size = dataSize;
+	byte header[kHeaderSize];
+	if (_stream->read(header, kHeaderSize) != kHeaderSize) {
+		warning("[CompressedSoundStream] Cannot read header");
+		return;
 	}
+
+	uint32 wavSize = READ_LE_UINT32(&header[4]);
+	if (READ_BE_UINT32(&header[8]) != MKTAG('R', 'I', 'F', 'F')
+	 || READ_BE_UINT32(&header[16]) != MKTAG('W', 'A', 'V', 'E')
+	 || READ_BE_UINT32(&header[44]) != MKTAG('d', 'a', 't', 'a')) {
+		warning("[CompressedSoundStream] Invalid WAVE header");
+		return;
+	}
+
+	uint16 type          = READ_LE_UINT16(&header[28]);
+	uint16 channels      = READ_LE_UINT16(&header[30]);
+	uint16 bitsPerSample = READ_LE_UINT16(&header[42]);
+	if (type != 1 || bitsPerSample != 16 || (channels != 1 && channels != 2)) {
+		warning("[CompressedSoundStream] Unsupported WAVE format (type: %d, channels: %d, bits: %d)", type, channels, bitsPerSample);
+		return;
+	}
+
+	_isStereo = (channels == 2);
+	_rate     = (int)READ_LE_UINT32(&header[32]);
+
+	// The last chunk is padded: the data chunk size is the real length
+	uint32 dataSize = READ_LE_UINT32(&header[48]);
+	if (wavSize >= 44 && wavSize - 44 < dataSize)
+		dataSize = wavSize - 44;
+
+	_totalSamples = dataSize / 2;
+	if (_isStereo)
+		_totalSamples &= ~1u;
+
+	_isValid = true;
 }
 
-void SoundResource::getBuffer(SoundBuffer *buffer, uint32 size) {
-	if (!_currentPointer)
-		error("[SoundResource::getBuffer] Current pointer not initialized properly");
+CompressedSoundStream::~CompressedSoundStream() {
+	delete _stream;
+}
 
-	if (!buffer)
-		error("[SoundResource::getBuffer] Invalid info parameter");
+bool CompressedSoundStream::endOfData() const {
+	return !_isValid || _samplesRead >= _totalSamples;
+}
 
-	if (_size) {
-		if (size < _size || size == _size) {
-			_size -= size;
+bool CompressedSoundStream::rewind() {
+	if (!_isValid)
+		return false;
 
-			buffer->buffer = _currentPointer;
-			buffer->size   = size;
+	_samplesRead = 0;
+	_samplesPos  = 0;
+	_samples.clear();
+	_value       = 0;
+	_delta       = 0;
+	_lastSample  = 0;
 
-			_currentPointer += size;
+	return _stream->seek(kHeaderSize);
+}
+
+int CompressedSoundStream::readBuffer(int16 *buffer, const int numSamples) {
+	int count = 0;
+
+	while (count < numSamples && !endOfData()) {
+		if (_samplesPos >= _samples.size()) {
+			if (!decodeChunk()) {
+				// Truncated file: stop here
+				_totalSamples = _samplesRead;
+				break;
+			}
+		}
+
+		uint32 available = MIN<uint32>(_samples.size() - _samplesPos, _totalSamples - _samplesRead);
+		uint32 toCopy    = MIN<uint32>(available, (uint32)(numSamples - count));
+
+		memcpy(&buffer[count], &_samples[_samplesPos], toCopy * sizeof(int16));
+		count        += toCopy;
+		_samplesPos  += toCopy;
+		_samplesRead += toCopy;
+	}
+
+	return count;
+}
+
+bool CompressedSoundStream::readChunk(uint32 size) {
+	if (size == 0 || _stream->pos() + (int64)size > _stream->size())
+		return false;
+
+	_chunk.resize(size + kChunkPadding);
+	if (_stream->read(_chunk.data(), size) != size)
+		return false;
+
+	memset(&_chunk[size], 0, kChunkPadding);
+
+	return true;
+}
+
+bool CompressedSoundStream::decodeChunk() {
+	_samples.clear();
+	_samplesPos = 0;
+
+	bool result = (_format == kSoundFormatWAS) ? decodeChunkStereo() : decodeChunkMono();
+
+	if (!_samples.empty())
+		_lastSample = _samples.back();
+
+	return result && !_samples.empty();
+}
+
+bool CompressedSoundStream::decodeChunkMono() {
+	if (_stream->pos() + 2 > _stream->size())
+		return false;
+
+	if (!readChunk(_stream->readUint16LE()))
+		return false;
+
+	_samples.resize(kMonoChunkSamples);
+
+	// The first 3 bits of each chunk are skipped
+	uint32 position = 3;
+	uint32 end = (_chunk.size() - kChunkPadding) * 8;
+
+	for (uint32 i = 0; i < kMonoChunkSamples; i++) {
+		if (position >= end) {
+			warning("[CompressedSoundStream::decodeChunkMono] Chunk too short");
+			return false;
+		}
+
+		uint32 bits = READ_BE_UINT32(&_chunk[position >> 3]);
+		uint32 bit  = 31 - (position & 7);
+
+		if (bits & (1u << bit)) {
+			position += 1;
 		} else {
-			buffer->buffer = _currentPointer;
-			buffer->size   = _size;
+			uint16 delta = (uint16)((bits << (32 - bit)) >> 22);
+			if (delta >= 512)
+				delta = (uint16)(512 - delta);
 
-			_size = 0;
-			_currentPointer = &_currentPointer[_size];
+			_delta = (uint16)(delta << 6);
+			position += 11;
 		}
-	} else {
-		cleanup();
-		buffer->buffer = nullptr;
-		buffer->size   = 0;
+
+		_value += _delta;
+		_samples[i] = (int16)_value;
 	}
-}
-
-void SoundResource::getBuffer(SoundBuffer *buffer) {
-	return getBuffer(buffer, _size);
-}
-
-#pragma endregion
-
-#pragma region CompressedSound
-
-CompressedSound::CompressedSound() {
-	_stream = nullptr;
-	_buffer = nullptr;
-	_field_C = 0;
-	_field_10 = 0;
-	_resource = nullptr;
-
-	// WAV related
-	_type = 0;
-	_samplesPerSec = 0;
-	_blockAlign = 0;
-	_flags = 0;
-	_chunkCount = 0;
-	_dataSize = 0;
-
-	// Stream related
-	_offset = 0;
-	_initialValue = 0;
-}
-
-bool CompressedSound::init(const Common::String &path) {
-	_stream = SearchMan.createReadStreamForMember(Common::Path(path, '/'));
-	if (!_stream) {
-		warning("[CompressedSound::init] Error opening file (%s)", path.c_str());
-		return false;
-	}
-
-	_resource = new SoundResource();
-
-	if (!decompressHeader())
-		return false;
 
 	return true;
 }
 
-uint16 CompressedSound::getBitsPerSample() const {
-	if (_flags & Audio::FLAG_UNSIGNED)
-		return 8;
+bool CompressedSoundStream::decodeChunkStereo() {
+	if (_stream->pos() + 8 > _stream->size())
+		return false;
 
-	if (_flags & Audio::FLAG_16BITS) {
-		if (_flags & Audio::FLAG_LITTLE_ENDIAN)
-			return 16;
+	uint32 compressedSize = _stream->readUint32LE();
+	uint32 decodedSize    = _stream->readUint32LE();
 
-		return 4;
-	}
+	if (!readChunk(compressedSize))
+		return false;
 
-	error("[CompressedSound::getBitsPerSample] Invalid set of flags");
-}
+	_samples.reserve(decodedSize / 2);
 
-uint32 CompressedSound::decode(byte delta, uint32 start, uint32, int16 *buffer) {
-	if (!_stream)
-		error("[CompressedSound::decode] Stream not initialized properly");
+	uint16 dictionary[64];
+	uint32 lastUsed[64];
+	memset(dictionary, 0, sizeof(dictionary));
+	memset(lastUsed, 0, sizeof(lastUsed));
+	byte leastUsed = 0;
+	byte current = 0;
+	int16 previous = _lastSample;
 
-	// Store buffer position
-	int16 *bufferStart = buffer;
+	uint32 position = 0;
+	uint32 end = compressedSize * 8;
 
-	start += 3;
+	while (position < end) {
+		uint32 bits = READ_BE_UINT32(&_chunk[position >> 3]);
+		uint32 bit  = 31 - (position & 7);
 
-	while (buffer < (bufferStart + 256)) {
-		_stream->seek(start >> 3, SEEK_SET);
+		if (!(bits & (1u << bit))) {
+			// Literal (the original does not update the slot usage here)
+			uint16 sample = (uint16)(((bits << (32 - bit)) >> 20) << 4);
 
-		uint32 var = _stream->readUint32BE();
-		uint32 position = 31 - (start & 7);
-
-		if (CHECK_BIT(var, position)) {
-			_initialValue += _offset;
-			WRITE_UINT16(buffer, (uint16)_initialValue);
-			++buffer;
-			++start;
+			dictionary[leastUsed] = sample;
+			current = leastUsed;
+			previous = (int16)sample;
+			position += 13;
 		} else {
-			uint16 decoded = (uint16)((var << (32 - position)) >> (32 - delta));
+			if (!(bits & (1u << (bit - 1)))) {
+				// Dictionary reference
+				current = (byte)((bits << (33 - bit)) >> 26);
+				previous = (int16)dictionary[current];
+				position += 8;
+			} else {
+				// Repeat previous sample
+				position += 2;
+			}
 
-			if (decoded >= 512)
-				decoded = 512 - decoded;
+			lastUsed[current] = position;
 
-			_offset = (uint16)(decoded << 6);
-
-			_initialValue += _offset;
-			WRITE_UINT16(buffer, _initialValue);
-			++buffer;
-
-			start += 11;
-		}
-	}
-
-	return (uint32)(buffer - bufferStart);
-}
-
-#pragma endregion
-
-#pragma region CompressedSoundMono
-
-CompressedSoundMono::CompressedSoundMono() : CompressedSound() {
-	_compressedDataOffset = 0;
-}
-
-CompressedSoundMono::~CompressedSoundMono() {
-	SAFE_DELETE(_stream);
-	SAFE_FREE(_buffer);
-	_field_C = 0;
-	SAFE_DELETE(_resource);
-}
-
-bool CompressedSoundMono::decompressHeader() {
-	if (!_stream)
-		error("[CompressedSoundMono::decompressHeader] sound stream not initialized");
-
-	_chunkCount = _stream->readUint32LE();
-	_dataSize   = _stream->readUint32LE();
-
-	int size;
-	if (!Audio::loadWAVFromStream(*_stream, size, _samplesPerSec, _flags, &_type, &_blockAlign)) {
-		warning("[CompressedSoundMono::decompressHeader] Cannot parse WAVE header");
-		return false;
-	}
-
-	// Setup fields and buffer
-	--_chunkCount;
-
-	_compressedDataOffset = _stream->readUint16LE();
-	_field_C  = 0;
-	_field_10 = 44;
-
-	_buffer = (byte *)malloc(1536);
-	if (!_buffer)
-		error("[CompressedSoundMono::decompressHeader] Cannot allocate sound decoding buffer");
-
-	return true;
-}
-
-bool CompressedSoundMono::decompress(SoundBuffer *buffer) {
-	error("[CompressedSoundMono::decompress] Not implemented");
-}
-
-bool CompressedSoundMono::getChunk() {
-	if (!_stream)
-		error("[CompressedSoundMono::getChunk] Stream not initialized properly");
-
-	_stream->seek(52, SEEK_SET);
-	_compressedDataOffset = _stream->readUint16LE();
-
-	_field_C  = 0;
-	_field_10 = 44;
-
-	return true;
-}
-
-#pragma endregion
-
-#pragma region CompressedSoundStereo
-
-CompressedSoundStereo::CompressedSoundStereo() : CompressedSound() {
-	_compressedDataOffset = 0;
-	_field_30 = 0;
-}
-
-CompressedSoundStereo::~CompressedSoundStereo() {
-	SAFE_DELETE(_stream);
-	SAFE_FREE(_buffer);
-	_field_C = 0;
-	SAFE_DELETE(_resource);
-}
-
-bool CompressedSoundStereo::decompressHeader() {
-	if (!_stream)
-		error("[CompressedSoundStereo::decompressHeader] sound stream not initialized");
-
-	_chunkCount = _stream->readUint32LE();
-	_dataSize   = _stream->readUint32LE();
-
-	int size;
-	if (!Audio::loadWAVFromStream(*_stream, size, _samplesPerSec, _flags, &_type, &_blockAlign)) {
-		warning("[CompressedSoundStereo::decompressHeader] Cannot parse WAVE header");
-		return false;
-	}
-
-	// Setup fields and buffer
-	--_chunkCount;
-
-	_field_C  = 0;
-	_field_10 = 44;
-	_compressedDataOffset = _stream->readUint32LE();
-	_field_30 = _stream->readUint32LE();
-
-	// Compute buffer size
-	uint32 bufferSize = (uint32)((getType() != 0 ? 2 : 1) * getSamplesPerSec() * getBitsPerSample());
-
-	_buffer = (byte *)malloc(bufferSize + 1024);
-	if (!_buffer)
-		error("[CompressedSoundStereo::decompressHeader] Cannot allocate sound decoding buffer");
-
-	return true;
-}
-
-bool CompressedSoundStereo::decompress(SoundBuffer *soundBuffer) {
-	if (!_stream || !_resource)
-		error("[CompressedSoundStereo::decompress] Stream not initialized");
-
-	// Compute buffer size
-	uint32 size = soundBuffer->size;
-	if (size > _dataSize - _field_10)
-		size = _dataSize - _field_10;
-
-	if (!size)
-		error("[CompressedSoundStereo::decompress] Invalid buffer size (cannot be 0)");
-
-	// Allocate buffer
-	byte *buffer = (byte *)malloc(size + 1024);
-	if (!buffer)
-		error("[CompressedSoundStereo::decompress] Cannot allocate buffer for sound decompression (size: %d)", size + 1024);
-
-	while (true) {
-
-		// Get buffer from the sound resource
-		if (_resource->getSize()) {
-			error("[CompressedSoundStereo::decompress] Not implemented");
+			if (current == leastUsed) {
+				leastUsed = 0;
+				for (byte i = 1; i < 64; i++)
+					if (lastUsed[i] < lastUsed[leastUsed])
+						leastUsed = i;
+			}
 		}
 
-		// Check that the stream contains enough data
-		int32 remainingSize = _stream->size() - _stream->pos();
-		if (remainingSize < 0 || remainingSize < (int32)_compressedDataOffset + 8)
-			error("[CompressedSoundStereo::decompress] Invalid remaining stream size (needed: %d, found: %d)", _compressedDataOffset + 8, remainingSize);
-
-		if (_field_30 >= size)
-			break;
-
-		error("[CompressedSoundStereo::decompress] Not implemented");
+		_samples.push_back(previous);
 	}
 
-	error("[CompressedSoundStereo::decompress] Not implemented");
-}
-
-bool CompressedSoundStereo::getChunk() {
-	if (!_stream)
-		error("[CompressedSoundStereo::getChunk] Stream not initialized");
-
-	_stream->seek(52, SEEK_SET);
-	_compressedDataOffset = _stream->readUint32LE();
-	_field_30 = _stream->readUint32LE();
-
-	_field_C  = 0;
-	_field_10 = 44;
+	if (_samples.size() > decodedSize / 2)
+		_samples.resize(decodedSize / 2);
 
 	return true;
 }
 
 #pragma endregion
 
-#pragma region SoundLoader
+Audio::RewindableAudioStream *makeSoundStream(const Common::String &path, SoundFormat format) {
+	Common::SeekableReadStream *stream = SearchMan.createReadStreamForMember(Common::Path(path, '/'));
+	if (!stream) {
+		warning("[makeSoundStream] Cannot open stream to file (%s)", path.c_str());
+		return nullptr;
+	}
 
-SoundLoader::SoundLoader(SoundFormat format) {
-	_type = 0;
-	_channels = 0;
-	_samplesPerSec = 0;
-	_avgBytesPerSec = 0;
-	_blockAlign = 0;
-	_bitsPerSample = 0;
-	//_field_10 = 0;
-	_compressedStream = nullptr;
-	_field_16 = false;
-	//_field_1A = 0;
-	_format = format;
-}
-
-SoundLoader::~SoundLoader() {
-	SAFE_DELETE(_compressedStream);
-}
-
-bool SoundLoader::load(const Common::String &path, SoundEntryStream *soundEntry) {
-	_field_16 = false;
-
-	switch (_format) {
+	switch (format) {
 	default:
-		error("[SoundLoader::load] Invalid sound format (%d)", _format);
+		error("[makeSoundStream] Invalid sound format (%d)", format);
+
+	case kSoundFormatWAV:
+		return Audio::makeWAVStream(stream, DisposeAfterUse::YES);
 
 	case kSoundFormatWAC:
-		_compressedStream = new CompressedSoundMono();
-		break;
+	case kSoundFormatWAS: {
+		CompressedSoundStream *audioStream = new CompressedSoundStream(stream, format);
+		if (!audioStream->isValid()) {
+			warning("[makeSoundStream] Invalid compressed sound (%s)", path.c_str());
+			delete audioStream;
+			return nullptr;
+		}
 
-	case kSoundFormatWAS:
-		_compressedStream = new CompressedSoundStereo();
-		break;
+		return audioStream;
 	}
-
-	if (!_compressedStream->init(path))
-		return true;
-
-	// Initialize loader data from wave header
-	_type = _compressedStream->getType();
-	//_channels = _compressedStream->getChannels();
-	_samplesPerSec = _compressedStream->getSamplesPerSec();
-	//_avgBytesPerSec = _compressedStream->getAvgBytesPerSec();
-	_bitsPerSample = _compressedStream->getBitsPerSample();
-	_blockAlign    = _compressedStream->getBlockAlign();
-	//_field_10 = ???
-
-	return false;
-}
-
-void SoundLoader::close() {
-	SAFE_DELETE(_compressedStream);
-}
-
-bool SoundLoader::getChunk() {
-	if (!_compressedStream)
-		error("[SoundLoader::getChunk] Compressed stream not initialized properly");
-
-	_compressedStream->getChunk();
-	_field_16 = false;
-
-	return false;
-}
-
-uint32 SoundLoader::getDataSize() {
-	if (!_compressedStream)
-		error("[SoundLoader::getChunk] Compressed stream not initialized properly");
-
-	return _compressedStream->getDataSize();
-}
-
-bool SoundLoader::read(uint32 size, byte *buffer, uint32 *readSize) {
-	if (!_compressedStream)
-		error("[SoundLoader::read] Stream not initialized");
-
-	if (_field_16) {
-		*readSize = 0;
-		return false;
 	}
-
-	SoundBuffer bufferDec;
-	if (!_compressedStream->decompress(&bufferDec))
-		return true;
-
-	// Copy decompressed data
-	memcpy(buffer, bufferDec.buffer, bufferDec.size);
-	*readSize = bufferDec.size;
-
-	if (bufferDec.field_4) {
-		_field_16 = true;
-		*readSize -= 88;
-	}
-
-	return false;
 }
-
-#pragma endregion
 
 } // End of namespace Ring

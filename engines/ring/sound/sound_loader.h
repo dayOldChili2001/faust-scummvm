@@ -24,157 +24,71 @@
 
 #include "ring/shared.h"
 
+#include "audio/audiostream.h"
+
+#include "common/array.h"
 #include "common/stream.h"
 
 namespace Ring {
 
-class CompressedSoundStream;
-class CompressedStream;
-class SoundEntryStream;
-
-struct SoundBuffer {
-	byte   *buffer;
-	uint32 field_4;
-	uint32  size;
-
-	SoundBuffer() {
-		buffer = nullptr;
-		field_4 = 0;
-		size   = 0;
-	}
-
-	~SoundBuffer() {
-		free(buffer);
-	}
-};
-
-class SoundResource {
+// Arxel compressed sound (.wac / .was)
+//
+// File layout:
+//   uint32 chunkCount
+//   uint32 wavSize (size of the equivalent .wav file)
+//   44-byte RIFF/WAVE header (PCM, 16 bits)
+//   chunks
+//
+// WAC (original: aSecComSouMono) chunk: uint16 size + bitstream decoding to 256 samples.
+// Each sample is either a 1-bit "repeat last delta" flag, or a 0 bit followed by a
+// 10-bit sign/magnitude delta (shifted left by 6) added to the previous sample.
+//
+// WAS (original: aSecComSouStereo) chunk: uint32 compressedSize + uint32 decodedSize
+// + bitstream. Each sample is one of:
+//   0 + 12-bit literal (shifted left by 4), stored in the least recently used dictionary slot
+//   10 + 6-bit index into a 64-entry dictionary of recent sample values
+//   11 repeat the previous sample
+// The dictionary is reset at the start of each chunk.
+class CompressedSoundStream : public Audio::RewindableAudioStream {
 public:
-	SoundResource();
-	~SoundResource();
+	CompressedSoundStream(Common::SeekableReadStream *stream, SoundFormat format);
+	~CompressedSoundStream() override;
 
-	void add(void *data, uint32 dataSize);
-	void getBuffer(SoundBuffer *buffer, uint32 size);
-	void getBuffer(SoundBuffer *buffer);
-	uint32 getSize() { return _size; }
+	bool isValid() const { return _isValid; }
+
+	// AudioStream
+	int readBuffer(int16 *buffer, const int numSamples) override;
+	bool isStereo() const override { return _isStereo; }
+	int getRate() const override { return _rate; }
+	bool endOfData() const override;
+	bool rewind() override;
 
 private:
-	byte   *_buffer;
-	byte   *_currentPointer;
-	uint32  _size;
-
-	void cleanup();
-};
-
-struct CompressedSoundHeader {
-	int32 field_0;
-	int32 field_4;
-	int32 field_8;
-	int32 field_C0;
-	int32 field_10;
-	int32 field_14;
-	int32 field_16;
-	int32 field_18;
-	int32 field_1C;
-	int32 field_20;
-	int32 field_22;
-	int32 field_24;
-	int32 field_28;
-};
-
-// Sound decompression classes
-class CompressedSound {
-public:
-	CompressedSound();
-	virtual ~CompressedSound() {};
-
-	bool init(const Common::String &path);
-	virtual bool decompressHeader() = 0;
-	virtual bool decompress(SoundBuffer *buffer) = 0;
-	uint32 getDataSize() { return _dataSize; }
-	virtual bool getChunk() = 0;
-	uint32 getSamplesPerSec() { return (uint32)_samplesPerSec; }
-	uint16 getBitsPerSample() const;
-	uint16 getType() { return _type; }
-	uint16 getBlockAlign() { return (uint16)_blockAlign; }
-
-protected:
-	Common::SeekableReadStream  *_stream;
-	byte                        *_buffer;
-	int32                        _field_C;
-	int32                        _field_10;
-	SoundResource               *_resource;
-	// Original stores the whole wave header, we only keep the interesting bits
-	uint16                       _type;
-	int                          _samplesPerSec;
-	int                          _blockAlign;
-	byte                         _flags;
-	uint32                       _chunkCount;
-	uint32                       _dataSize;
-
-	// Stream related variables
-	uint16                       _offset;
-	uint16                       _initialValue;
-
-	uint32 decode(byte delta, uint32 start, uint32 end, int16 *buffer);
-};
-
-class CompressedSoundMono : public CompressedSound {
-public:
-	CompressedSoundMono();
-	~CompressedSoundMono();
-
-	bool decompressHeader() override;
-	bool decompress(SoundBuffer *buffer) override;
-	bool getChunk() override;
-
-private:
-	int16 _compressedDataOffset;
-};
-
-class CompressedSoundStereo : public CompressedSound {
-public:
-	CompressedSoundStereo();
-	~CompressedSoundStereo();
-
-	bool decompressHeader() override;
-	bool decompress(SoundBuffer *buffer) override;
-	bool getChunk() override;
-
-private:
-	uint32 _compressedDataOffset;
-	uint32 _field_30;
-};
-
-class SoundLoader {
-public:
-	SoundLoader(SoundFormat format);
-	~SoundLoader();
-
-	bool load(const Common::String &path, SoundEntryStream *soundEntry);
-	void close();
-	bool getChunk();
-	uint32 getDataSize();
-	bool read(uint32 size, byte *buffer, uint32 *readSize);
-
-	// Accessors
-	uint16 getType() { return _type; }
-	uint16 getSamplesPerSec() { return _samplesPerSec; }
-	uint16 getBlockAlign() { return _blockAlign; }
-
-private:
-	uint16 _type;
-	uint16 _channels;
-	uint32 _samplesPerSec;
-	uint32 _avgBytesPerSec;
-	uint16 _blockAlign;
-	uint16 _bitsPerSample;
-	//uint16 _field_10;
-	CompressedSound *_compressedStream;
-	bool _field_16;
-	//uint32 _field_1A;
+	Common::SeekableReadStream *_stream;
 	SoundFormat _format;
+	bool        _isValid;
+	bool        _isStereo;
+	int         _rate;
+	uint32      _totalSamples;
+	uint32      _samplesRead;
+
+	Common::Array<byte>  _chunk;
+	Common::Array<int16> _samples;
+	uint32               _samplesPos;
+
+	// Decoder state
+	uint16 _value;
+	uint16 _delta;
+	int16  _lastSample;
+
+	bool decodeChunk();
+	bool decodeChunkMono();
+	bool decodeChunkStereo();
+	bool readChunk(uint32 size);
 };
+
+// Creates a stream for a .wav, .wac or .was file (nullptr on error)
+Audio::RewindableAudioStream *makeSoundStream(const Common::String &path, SoundFormat format);
 
 } // End of namespace Ring
 
