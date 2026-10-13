@@ -48,7 +48,7 @@ AquatorStream::~AquatorStream() {
 	SAFE_DELETE(_entry);
 }
 
-void AquatorStream::alloc(bool isCompressed, const Graphics::PixelFormat &format, uint32 size) {
+void AquatorStream::alloc(bool isCompressed, uint32 size) {
 	if (isCompressed) {
 		Common::String filename = Common::String::format("%s.aqc", _path.c_str());
 
@@ -57,7 +57,7 @@ void AquatorStream::alloc(bool isCompressed, const Graphics::PixelFormat &format
 		if (!stream->init(filename, 2, size))
 			error("[AquatorStream::alloc] Cannot init compressed stream for aquator file (%s)", filename.c_str());
 
-		initNode(stream->decompressNode(), format);
+		initNode(stream->decompressNode());
 
 		// Decompress each channel
 		for (uint32 i = 0; i < _headers.size(); i++)
@@ -71,47 +71,32 @@ void AquatorStream::alloc(bool isCompressed, const Graphics::PixelFormat &format
 		if (!archive)
 			error("[AquatorStream::alloc] Error opening uncompressed aquator (%s)", filename.c_str());
 
-		initNode(archive, format);
+		initNode(archive);
 
 		// Init channels
 		for (uint32 i = 0; i < _headers.size(); i++)
 			initStream(i);
 	}
+
+	// Channels keep a copy of the node codes they cover, so decode the node last
+	_entry->decodeAll();
 }
 
+// 0x4042c0
 void AquatorStream::dealloc() {
-	CLEAR_ARRAY(AquatorImageHeader, _headers);
+	for (uint32 i = 0; i < _headers.size(); i++)
+		_headers[i]->getHeader()->reset();
 
-	delete _entry;
-	_entry = new ImageHeaderEntry();
+	_entry->reset();
 }
 
-void AquatorStream::initNode(Common::SeekableReadStream *stream, const Graphics::PixelFormat &format) {
+void AquatorStream::initNode(Common::SeekableReadStream *stream) {
+	if (!stream)
+		error("[AquatorStream::initNode] Invalid node stream");
+
 	_entry->init(stream, true);
 
-	SAFE_DELETE(stream);
-
-	// Init entry buffer
-	uint16 *buffer = (uint16 *)_entry->getBuffer();
-
-	// Process buffer
-	for (uint32 i = 0; i < 64800; i++) {
-		int16 green = (buffer[0] >> 3) & 252;
-		int16 blue  = (buffer[0] >> 3) & 31;
-		int16 red   = (buffer[0] >> 8) & 248;
-
-		green >>= format.gBits();
-		blue  >>= format.bBits();
-		red   >>= format.rBits();
-
-		green <<= format.gShift;
-		blue  <<= format.bShift;
-		red   <<= format.rShift;
-
-		buffer[0] = green | red | blue;
-
-		++buffer;
-	}
+	delete stream;
 }
 
 void AquatorStream::initStream(uint32 index) {
@@ -127,7 +112,11 @@ void AquatorStream::initChannel(Common::SeekableReadStream *stream, uint32 index
 	AquatorImageHeader *aquatorHeader = _headers[index];
 	ImageHeader *imageHeader = aquatorHeader->getHeader();
 
+	if (!stream)
+		error("[AquatorStream::initChannel] Invalid channel stream (%d)", index);
+
 	imageHeader->init(stream);
+	delete stream;
 
 	imageHeader->update(_entry);
 
@@ -143,17 +132,28 @@ uint32 AquatorStream::getField0ByIndex(uint32 index) {
 	return _headers[index]->getField0();
 }
 
-void AquatorStream::updateEntries(float timeOffset) {
+// 0x404310
+void AquatorStream::updateEntries(float) {
+	// Restore the node under disabled channels
 	for (Common::Array<AquatorImageHeader *>::iterator it = _headers.begin(); it != _headers.end(); it++) {
 		AquatorImageHeader *header = (*it);
 
-		if (!header->getHeader()->hasEntries())
+		if (!header->getHeader()->hasEntries() || !header->shouldUpdateEntries() || header->getChannel())
 			continue;
 
-		if (header->shouldUpdateEntries()) {
-			_entry->updateEntry(header->getChannel() ? header->getHeader()->get(header->getField8() * 64) : header->getHeader()->getCurrent(), true);
-			header->shouldUpdateEntries(0);
-		}
+		_entry->decode(header->getHeader()->getCurrent());
+		header->shouldUpdateEntries(0);
+	}
+
+	// Draw the current frame of enabled channels
+	for (Common::Array<AquatorImageHeader *>::iterator it = _headers.begin(); it != _headers.end(); it++) {
+		AquatorImageHeader *header = (*it);
+
+		if (!header->getHeader()->hasEntries() || !header->shouldUpdateEntries() || !header->getChannel())
+			continue;
+
+		_entry->decode(header->getHeader()->get(header->getField8()));
+		header->shouldUpdateEntries(0);
 	}
 }
 

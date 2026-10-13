@@ -65,8 +65,9 @@ void ImageHeader::update(ImageHeaderEntry* entry) {
 	if (!_current)
 		error("[ImageHeader::update] entry not initialized properly");
 
+	// Keep the node codes under the channel so they can be restored (0x403c30)
 	_current->init(_entries[0]);
-	entry->updateEntry(_current);
+	entry->copyCodes(_current);
 }
 
 ImageHeaderEntry *ImageHeader::get(uint32 index) {

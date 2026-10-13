@@ -200,7 +200,7 @@ Common::MemoryReadStream *CompressedStream::decompressNode() {
 	header.load(stream);
 
 	// Compute buffer size
-	uint32 size = (uint32)(header.field_0 * header.field_4 * header.field_8 / 4);
+	uint32 size = (uint32)(header.width * header.height * header.bytesPerPixel / 4);
 	uint32 bufferSize = size + 129652;
 	if (bufferSize > 10000000) {
 		warning("[CompressedStream::decompressNode] Invalid node buffer size (%d)", bufferSize);
@@ -254,7 +254,7 @@ Common::MemoryReadStream *CompressedStream::decompressChannel() {
 	header.load(stream);
 
 	// Compute buffer size
-	uint32 entrySize = header.field_2C / 4 + sizeof(header);
+	uint32 entrySize = header.size / 4 + sizeof(header);
 	uint32 size = entrySize * channelCount;
 	uint32 bufferSize = size + 12;
 	if (bufferSize > 10000000) {

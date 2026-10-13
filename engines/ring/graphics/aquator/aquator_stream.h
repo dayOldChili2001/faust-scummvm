@@ -35,7 +35,7 @@ public:
 	AquatorStream(uint32 count, Common::String path);
 	~AquatorStream();
 
-	void alloc(bool isCompressed, const Graphics::PixelFormat &format, uint32 size);
+	void alloc(bool isCompressed, uint32 size);
 	void dealloc();
 
 	uint32 getField0ByIndex(uint32 index);
@@ -54,7 +54,7 @@ private:
 	Common::String _path;
 	ImageHeaderEntry *_entry;
 
-	void initNode(Common::SeekableReadStream *stream, const Graphics::PixelFormat &format);
+	void initNode(Common::SeekableReadStream *stream);
 	void initChannel(Common::SeekableReadStream *stream, uint32 index);
 
 	// Decompressed aquator

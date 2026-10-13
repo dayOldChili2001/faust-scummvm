@@ -22,9 +22,9 @@
 #ifndef RING_ROTATION_H
 #define RING_ROTATION_H
 
-#include "ring/graphics/pixel.h"
-
 #include "ring/shared.h"
+
+#include "ring/graphics/aquator/image_header_entry.h"
 
 #include "common/keyboard.h"
 #include "common/rect.h"
@@ -146,33 +146,15 @@ private:
 	float                               _bet;
 	float                               _ran;
 
-	// Working data
-	uint32                              _ticks;
-	uint32                              _startTicks;
-	float                               _rotationTable[2048];
-	uint32                              _width;
-	uint32                              _height;
-	uint32                              _tableWidth;
-	uint32                              _tableHeight;
-	float                               _float0;
-	float                               _float1;
-	float                               _float2;
-	float                               _float3;
-	float                               _float4;
-	float                               _float5;
-	float                               _float6;
-	float                               _float7;
-	Pixel::PixelTriplet                 _triplet;
-	Pixel::PixelData                    _pixel0;
-	Pixel::PixelData                    _pixel1;
-	Pixel::PixelData                    _pixel2;
-	Pixel::PixelData                    _pixel3;
-
-	float                               _pixelTable0[4096];
-	float                               _pixelTable1[4096];
+	// Working data (globals in the exe)
+	uint32                              _ticks;             // Last update (0x4dba10)
+	uint32                              _startTicks;        // Allocation time (0x4cf960)
+	float                               _delta;             // Seconds since the last update (0x4d7a0c)
+	float                               _wobbleTable[64 * 64]; // Grid wobble amplitudes (0x4d7a10)
 
 	SoundItem *getSoundItem(Id soundId);
 	void updateView();
+	static void normalize(ImageHeaderEntry::Vector *vector);
 };
 
 } // End of namespace Ring

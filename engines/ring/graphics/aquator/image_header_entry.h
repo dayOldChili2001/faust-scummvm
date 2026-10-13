@@ -24,83 +24,92 @@
 
 #include "ring/shared.h"
 
+namespace Graphics {
+struct Surface;
+}
+
 namespace Ring {
 
+// An aquator image: a vector-quantized panorama (or a rectangle of one).
+//
+// Every uint16 code selects 4 horizontal pixels from a codebook of 16200
+// RGB565 quads. The node entry owns the codebook, the decoded 32bpp panorama
+// and the projection grid used to render the view (the exe keeps the latter
+// in a global at 0x4cf968). Channel entries (animated layers) only hold the
+// codes of their rectangle and are decoded into the node's panorama.
 class ImageHeaderEntry {
 public:
 	struct Header {
-		int32 field_0;
-		int32 field_4;
-		int32 field_8;
-		int32 field_C;
-		float field_10;
-		float field_14;
-		float field_18;
-		int32 field_1C;
-		int32 field_20;
-		int32 start;
-		int32 end;
-		int32 field_2C;
-		int32 field_30;
+		int32 width;          // Panorama width in pixels (always 2048)
+		int32 height;         // Panorama height in pixels
+		int32 bytesPerPixel;  // Of the original image (2)
+		float hMin;           // Horizontal range (degrees)
+		float hMax;
+		float vMin;           // Vertical range (degrees)
+		float vMax;
+		int32 left;           // Rectangle covered by this entry
+		int32 right;
+		int32 top;
+		int32 bottom;
+		int32 size;           // pitch * (bottom - top), in bytes of the original image
+		int32 pitch;
 
 		Header();
-		void update(const Header &header);
 		void load(Common::SeekableReadStream *stream);
+		void computeSize();
+	};
+
+	struct Vector {
+		float x;
+		float y;
+		float z;
+
+		Vector() : x(0), y(0), z(0) {}
+		Vector(float x_, float y_, float z_) : x(x_), y(y_), z(z_) {}
 	};
 
 	ImageHeaderEntry();
 	~ImageHeaderEntry();
 
-	void init(Common::SeekableReadStream *stream, bool hasAdditionalData);
-	void init(ImageHeaderEntry *entry);
-	void updateEntry(ImageHeaderEntry *entry, bool updateFromEntry = false);
 	void reset();
 
-	// Buffer
-	void prepareBuffer();
+	// Loading
+	void init(Common::SeekableReadStream *stream, bool isNode);
+	void init(ImageHeaderEntry *entry);
+	void copyCodes(ImageHeaderEntry *entry) const;
+	void decode(const ImageHeaderEntry *entry);
+	void decodeAll();
+
+	// Rendering
+	void setCorners(const Vector *corners);
 	void process();
-	void drawBuffer(Graphics::Surface *surface);
+	void offsetGrid(uint32 row, uint32 col, int32 u, int32 v);
+	void clampGrid();
+	void drawBuffer(Graphics::Surface *surface, int32 offsetY);
 	void computeCoordinates(Common::Point *point);
 	void adjustCoordinates(Common::Point *point);
-	void updateData(float a1, float a2, float a3, float a4, float a5, float a6, float a7, float a8);
 
-	bool isInitialized() { return _buffer != nullptr; }
+	bool isInitialized() { return _codes != nullptr || _pixels != nullptr; }
 	const Header &getHeader() { return _header; }
-	void *getBuffer() { return _buffer; }
+
+	static const uint32 kViewWidth  = 640;
+	static const uint32 kViewHeight = 448;
+	static const uint32 kGridCols   = 40;
+	static const uint32 kGridRows   = 28;
 
 private:
-	struct InternalData {
-		float field_0;
-		float field_4;
-		float field_8;
-		float field_C;
-		float field_10;
-		float field_14;
-		float field_18;
-		float field_1C;
-
-		InternalData() {
-			field_0  = 0;
-			field_4  = 0;
-			field_8  = 0;
-			field_C  = 0;
-			field_10 = 0;
-			field_14 = 0;
-			field_18 = 0;
-			field_1C = 0;
-		}
-
-		void init(float a1, float a2, float a3, float a4, float a5, float a6);
-	};
-
 	Header  _header;
-	void   *_buffer;
-	void   *_bufferData;
-	bool    _hasAdditionnalData;
+	uint16 *_codes;
+	uint32 *_codebook;
+	uint32 *_pixels;
 
-	void *allocBuffer(bool hasAdditionnalData) const;
-	void initData();
-	void copyToSurface(int16 *data, int width, int height, int a4, int a5, int a6, int a7, int a8, int a9, int a10, int a11, byte *surface, int pitch);
+	// Projection grid (16.16 panorama coordinates of every 16x16 block corner)
+	int32   _gridU[64 * 64];
+	int32   _gridV[64 * 64];
+	Vector  _corners[4];
+
+	uint32 getCodeCount() const;
+	void drawBlock(const int32 *u, const int32 *v, byte *dst, int32 pitch, const Graphics::PixelFormat &format) const;
 };
 
 } // End of namespace Ring

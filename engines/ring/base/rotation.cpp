@@ -84,26 +84,11 @@ Rotation::Rotation(Id id, Common::String name, byte state, LoadFrom, uint32 node
 
 	_imageHandle = nullptr;
 
-	_ticks       = 0;
-	_startTicks  = 0;
+	_ticks      = 0;
+	_startTicks = 0;
+	_delta      = 0;
 
-	memset(_rotationTable, 0, sizeof(_rotationTable));
-
-	// Init pixel/data (original sets pixel and triple values here)
-	_float0 = 140.0f;
-	_float1 = 0.0f;
-	_float2 = 360.0f;
-	_float3 = 180.0f;
-	_float4 = 1024.0f;
-	_float5 = 1024.0f;
-	_float6 = 0.0f;
-	_float7 = 0.0f;
-
-	// Initialize rotation values
-	_width = 640;
-	_height = 448;
-	_tableWidth = 28;
-	_tableHeight = 40;
+	memset(_wobbleTable, 0, sizeof(_wobbleTable));
 }
 
 Rotation::~Rotation() {
@@ -119,42 +104,34 @@ Rotation::~Rotation() {
 	SAFE_DELETE(_stream);
 }
 
+// 0x403180
 void Rotation::alloc() {
 	if (_stream->isInitialized())
 		return;
 
-	_stream->alloc(_isCompressedStream, g_system->getScreenFormat(), _comBufferLength);
+	_stream->alloc(_isCompressedStream, _comBufferLength);
 
 	_field_31 = 0;
 
 	// Init ticks
 	_startTicks = g_system->getMillis();
-	_ticks= _startTicks;
+	_ticks = _startTicks;
 
-	// Initialize rotation data and tables
-	ImageHeaderEntry::Header header = _stream->getEntry()->getHeader();
-	_float4 = header.field_4;
-	_float5 = header.field_4;
-	_float2 = header.field_10 - header.field_C;
-	_float3 = (header.field_10 + header.field_C) * 0.5f;
-	_float0 = header.field_18 - header.field_14;
-	_float7 = (_float4 - 2) * 65536.0f;
-	_float6 = 0.0f;
-	_float1 = (header.field_18 + header.field_14) * 0.5f;
+	// Grid wobble amplitudes: only the top-left 32x32 of the table is set
+	memset(_wobbleTable, 0, sizeof(_wobbleTable));
+	for (uint32 row = 0; row < 32; row++)
+		for (uint32 col = 0; col < 32; col++)
+			_wobbleTable[row * 64 + col] = rnd(32768) * _amplitude / 32767.0f;
 
-	for (uint32 i = 0; i < ARRAYSIZE(_rotationTable) - 64; i += 64) {
-		for (uint32 j = 0; j < 32; j++)
-			_rotationTable[i + j] = rnd((uint32)_amplitude) * 0.000030518509f;
-	}
-
-	_field_45 = rnd(RAND_MAX) * _field_35 * 0.000030518509f;
-	_field_49 = rnd(RAND_MAX) * _field_35 * 0.000030518509f;
-	_field_4D = rnd(RAND_MAX) * _field_35 * 0.000030518509f;
-	_field_51 = rnd(RAND_MAX) * _field_35 * 0.000030518509f;
-	_field_55 = rnd(RAND_MAX) * _field_35 * 0.000030518509f;
-	_field_59 = rnd(RAND_MAX) * _field_35 * 0.000030518509f;
-	_field_5D = rnd(RAND_MAX) * _field_35 * 0.000030518509f;
-	_field_61 = rnd(RAND_MAX) * _field_35 * 0.000030518509f;
+	// Corner wobble phases and amplitudes
+	_field_45 = rnd(32768) * _field_35 / 32767.0f;
+	_field_49 = rnd(32768) * _field_35 / 32767.0f;
+	_field_4D = rnd(32768) * _field_35 / 32767.0f;
+	_field_51 = rnd(32768) * _field_35 / 32767.0f;
+	_field_55 = rnd(32768) * _field_35 / 32767.0f;
+	_field_59 = rnd(32768) * _field_35 / 32767.0f;
+	_field_5D = rnd(32768) * _field_35 / 32767.0f;
+	_field_61 = rnd(32768) * _field_35 / 32767.0f;
 }
 
 void Rotation::dealloc() {
@@ -162,37 +139,42 @@ void Rotation::dealloc() {
 		_stream->dealloc();
 }
 
+// 0x403380
 void Rotation::update() {
-	_ticks = g_system->getMillis();
-	float timeOffset = (_ticks - _startTicks) * 0.001f;
+	uint32 ticks = g_system->getMillis();
+	_delta = (ticks - _ticks) * 0.001f;
 
 	// Update presentations
 	for (Common::Array<ObjectPresentation *>::iterator it = _presentations.begin(); it != _presentations.end(); it++) {
 		ObjectPresentation *presentation = (*it);
 
-		presentation->playPuzzleAnimations(_ticks);
-		presentation->playRotationAnimations(_ticks);
+		presentation->playPuzzleAnimations(ticks);
+		presentation->playRotationAnimations(ticks);
 	}
 
-	// Update aquator
+	// Show the current frame of playing layer animations
+	for (uint32 i = 0; i < _stream->getCount(); i++)
+		if (_stream->getField0ByIndex(i))
+			_stream->setChannel(i, 0);
+
 	for (uint32 i = 0; i < _stream->getCount(); i++) {
-		if (!_stream->getField0ByIndex(i))
+		if (!_stream->getField0ByIndex(i) || !_animations[i]->getField26())
 			continue;
 
-		if (_animations[i]->getField26())
-			_stream->sub_411530(i, _animations[i]->getField2D());
-		else
-			_stream->setChannel(i, 0);
+		_stream->setChannel(i, 1);
+		_stream->sub_411530(i, _animations[i]->getActiveFrame());
 	}
 
 	updateAmbientSoundPan(true);
-	_stream->updateEntries(timeOffset);
+	_stream->updateEntries(_delta);
 
 	if (_field_31 < 1.0f)
-		_field_31 += timeOffset;
+		_field_31 += _delta;
 
 	if (_field_31 > 1.0f)
 		_field_31 = 1.0f;
+
+	_ticks = ticks;
 }
 
 void Rotation::updateAndDraw(float alp, float bet, float ran) {
@@ -239,144 +221,101 @@ void Rotation::setCoordinates(Common::Point *point, Common::KeyCode keycode) {
 	}
 }
 
+// 0x402740
 void Rotation::updateView() {
-	// Initialize rotation data and tables
-	ImageHeaderEntry::Header header = _stream->getEntry()->getHeader();
-	_float4 = header.field_4;
-	_float5 = header.field_4;
-	_float2 = header.field_10 - header.field_C;
-	_float3 = (header.field_10 + header.field_C) * 0.5f;
-	_float0 = header.field_18 - header.field_14;
-	_float7 = (_float4 - 2) * 65536.0f;
-	_float6 = 0.0f;
-	_float1 = (header.field_18 + header.field_14) * 0.5f;
+	ImageHeaderEntry *entry = _stream->getEntry();
+	const ImageHeaderEntry::Header &header = entry->getHeader();
 
-	/////////////////////////////////
-	// RAN
-	/////////////////////////////////
-	if (_ran < 30.0f)
-		_ran = 30.0f;
+	const float pi = (float)M_PI;
+	float vRange  = header.vMax - header.vMin;
+	float vCenter = (header.vMax + header.vMin) * 0.5f;
 
-	if (_ran > 87.0f)
-		_ran = 87.0f;
+	// Field of view
+	_ran = CLIP<float>(_ran, 30.0f, 87.0f);
 
-	/////////////////////////////////
-	// Data
-	/////////////////////////////////
-	uint32 maxWidthHeight = _width;
-	if (_width <= _height)
-		maxWidthHeight = _height;
+	float halfAngle = _ran * pi / 360.0f;
+	float z = cos(halfAngle);
+	float scale = sin(halfAngle) / (float)MAX(ImageHeaderEntry::kViewWidth, ImageHeaderEntry::kViewHeight);
+	float w = ImageHeaderEntry::kViewWidth  * scale;
+	float h = ImageHeaderEntry::kViewHeight * scale;
 
-	float angle = _ran * acos(-1.0f) * 0.002777777777777778f;
-	float cos1 = cos(angle);
-	float sin1 = sin(angle) / (float)maxWidthHeight;
+	// The view is wider than high, so the horizontal fov is ran
+	float fovV = 2.0f * asin(h) * 180.0f / pi;
 
-	float angle0 = _width * sin1;
-	float angle1 = _height * sin1;
+	while (_alp >= 360.0f)
+		_alp -= 360.0f;
 
-	float ran2;
-	if (_width == maxWidthHeight) {
-		ran2 = 2 * asin(angle1) * 180.0f / acos(-1.0f);
-	} else {
-		ran2 = _ran;
-		_ran = 2 * asin(angle0) * 180.0f / acos(-1.0f);
-	}
+	while (_alp < 0.0f)
+		_alp += 360.0f;
 
-	/////////////////////////////////
-	// ALP
-	/////////////////////////////////
+	float delta = (vRange - fovV) * 0.5f - 5.0f;
+	if (_bet > vCenter + delta)
+		_bet = vCenter + delta;
 
-	// Reduce alp to the [-360, 360] range
-	_alp = fmod(_alp, 360.0f);
+	if (_bet < vCenter - delta)
+		_bet = vCenter - delta;
 
-	/////////////////////////////////
-	// BET
-	/////////////////////////////////
+	// Camera basis (0x4037b0, 0x403800)
+	float alp = _alp * pi / 180.0f;
+	float bet = _bet * pi / 180.0f;
 
-	float delta = (_float0 - ran2) * 0.5f * 0.5f;
-	if (_bet > _float1 + delta)
-		_bet = _float1 + delta;
+	ImageHeaderEntry::Vector forward(sin(alp) * cos(bet), sin(bet), cos(alp) * cos(bet));
+	normalize(&forward);
 
-	if (_bet < _float1 - delta)
-		_bet = _float1 - delta;
+	float dot = forward.y;
+	ImageHeaderEntry::Vector up(-dot * forward.x, 1.0f - dot * forward.y, -dot * forward.z);
+	normalize(&up);
 
-	/////////////////////////////////
-	// Compute pixel value
-	float angle2 = _alp * acos(-1.0f) * 0.0055555557f;
-	float angle3 = _bet * acos(-1.0f) * 0.0055555557f;
+	ImageHeaderEntry::Vector right(up.y * forward.z - up.z * forward.y,
+	                               up.z * forward.x - up.x * forward.z,
+	                               up.x * forward.y - up.y * forward.x);
 
-	Pixel::PixelData pixel;
-	pixel.a1 = sin(angle2) * cos(angle3);
-	pixel.a2 = sin(angle3);
-	pixel.a3 = cos(angle2) * cos(angle3);
-
-	Pixel::divide(&pixel);
-
-	// Setup triplet
-	Pixel::set(&_triplet, &pixel, 0.0f, 1.0f, 0.0f);
-
-	/////////////////////////////////
-	// Pixel values
-	/////////////////////////////////
-	float movementDelta = (_ticks - _startTicks) * 0.001f;
+	// Corners of the view in camera space
+	float t = (_ticks - _startTicks) * 0.001f;
+	ImageHeaderEntry::Vector corners[4];
 
 	if (_field_65) {
-		float currentAngle = movementDelta * _field_3D;
+		float s = t * _field_3D;
 
-		// Adjust pixel values
-		_pixel0.a1 = -((sin(currentAngle * 0.82999998f + _field_49) * _field_31 * _field_45 + 1.0f) * angle0);
-		_pixel0.a2 = -((sin(currentAngle * 0.72000003f + _field_45) * _field_49 * _field_31 + 1.0f) * angle1);
-		_pixel0.a3 = cos1;
-
-		_pixel1.a1 =   (cos(currentAngle * 0.91000003f + _field_51) * _field_31 * _field_4D + 1.0f) * angle0;
-		_pixel1.a2 = -((cos(currentAngle * 1.13f       + _field_4D) * _field_31 * _field_51 + 1.0f) * angle1);
-		_pixel1.a3 = cos1;
-
-		_pixel2.a1 = -((sin(currentAngle * 0.92000002f + _field_59) * _field_55 * _field_31 + 1.0f) * angle0);
-		_pixel2.a2 =   (sin(currentAngle * 0.75f       + _field_55) * _field_31 * _field_59 + 1.0f) * angle1;
-		_pixel2.a3 = cos1;
-
-		_pixel3.a1 =   (cos(currentAngle * 0.88999999f + _field_61) * _field_31 * _field_5D + 1.0f) * angle0;
-		_pixel3.a2 =   (cos(currentAngle * 0.99f       + _field_5D) * _field_31 * _field_61 + 1.0f) * angle1;
-		_pixel3.a3 = cos1;
+		corners[0] = ImageHeaderEntry::Vector(-((sin(s * 0.83f + _field_49) * _field_31 * _field_45 + 1.0f) * w),
+		                                      -((sin(s * 0.72f + _field_45) * _field_31 * _field_49 + 1.0f) * h), z);
+		corners[1] = ImageHeaderEntry::Vector(  (cos(s * 0.91f + _field_51) * _field_31 * _field_4D + 1.0f) * w,
+		                                      -((cos(s * 1.13f + _field_4D) * _field_31 * _field_51 + 1.0f) * h), z);
+		corners[2] = ImageHeaderEntry::Vector(-((sin(s * 0.92f + _field_59) * _field_31 * _field_55 + 1.0f) * w),
+		                                        (sin(s * 0.75f + _field_55) * _field_31 * _field_59 + 1.0f) * h, z);
+		corners[3] = ImageHeaderEntry::Vector(  (cos(s * 0.89f + _field_61) * _field_31 * _field_5D + 1.0f) * w,
+		                                        (cos(s * 0.99f + _field_5D) * _field_31 * _field_61 + 1.0f) * h, z);
 	} else {
-		_stream->getEntry()->updateData(-angle0, -angle1, angle0, -angle1, -angle0, angle1, angle0, angle1);
+		corners[0] = ImageHeaderEntry::Vector(-w, -h, z);
+		corners[1] = ImageHeaderEntry::Vector( w, -h, z);
+		corners[2] = ImageHeaderEntry::Vector(-w,  h, z);
+		corners[3] = ImageHeaderEntry::Vector( w,  h, z);
 	}
 
-	Pixel::PixelData pixel1;
-	Pixel::PixelData pixel2;
-	Pixel::PixelData pixel3;
-	Pixel::PixelData pixel4;
+	// Rotate to world space (0x403990)
+	for (uint32 i = 0; i < 4; i++) {
+		ImageHeaderEntry::Vector c = corners[i];
 
-	Pixel::multiply(&_triplet.p3, &pixel1, _pixel0.a3);
-	Pixel::multiply(&_triplet.p2, &pixel2, _pixel0.a2);
-	Pixel::multiply(&_triplet.p1, &pixel3, _pixel0.a1);
+		corners[i].x = right.x * c.x + up.x * c.y + forward.x * c.z;
+		corners[i].y = right.y * c.x + up.y * c.y + forward.y * c.z;
+		corners[i].z = right.z * c.x + up.z * c.y + forward.z * c.z;
+	}
 
-	Pixel::add(&pixel3, &pixel4, pixel2.a1, pixel2.a2, pixel2.a3);
+	entry->setCorners(corners);
+	entry->process();
 
-	// Set storage pixels
-	Pixel::add(&pixel4, &_pixel0, pixel1.a1, pixel1.a2, pixel1.a3);
-	Pixel::set(&_triplet, &_pixel1, &_pixel1);
-	Pixel::set(&_triplet, &_pixel2, &_pixel3);
-	Pixel::set(&_triplet, &_pixel3, &_pixel3);
-
-	_stream->getEntry()->process();
-
+	// Grid wobble (water and similar effects)
 	if (_field_66) {
+		float sinValue = sin(t * _speed * 1.05f) * _field_31;
 
-		for (uint32 i = 0; i < _tableHeight; i++) {
-			for (uint32 j = 0; j < _tableWidth; j++) {
+		for (uint32 col = 0; col < ImageHeaderEntry::kGridCols; col++) {
+			for (uint32 row = 0; row < ImageHeaderEntry::kGridRows; row++) {
+				float amplitude = _wobbleTable[col * 64 + row];
 
-				//Pixel::PixelData pixel;
-				float val;
+				int32 u = (int32)(sinValue * amplitude * 65536.0f);
+				int32 v = (int32)(cos(t * _speed * 0.95f + amplitude) * _field_31 * amplitude * 65536.0f);
 
-				float tableValue = _rotationTable[i * 64 + j];
-
-				Pixel::multiply(&val, sin(movementDelta * _speed * 1.05f) * _field_31 * tableValue);
-				Pixel::add(&_pixelTable0[j * 64 + i], val);
-
-				Pixel::multiply(&val, cos(movementDelta * _speed * 0.94999999f + tableValue) * _field_31 * tableValue);
-				Pixel::add(&_pixelTable1[j * 64 + i], val);
+				entry->offsetGrid(row, col, u, v);
 			}
 		}
 	}
@@ -418,12 +357,16 @@ void Rotation::drawImage() {
 		getApp()->getScreenManager()->draw(_imageHandle, _imageHandle->getCoordinates(), kDrawTypeNormal);
 }
 
+// 0x403590
 void Rotation::draw() {
 	if (!_stream->isInitialized())
 		return;
 
-	_stream->getEntry()->prepareBuffer();
-	_stream->getEntry()->drawBuffer(getApp()->getScreenManager()->getSurface());
+	_stream->updateEntries(0);
+
+	ImageHeaderEntry *entry = _stream->getEntry();
+	entry->clampGrid();
+	entry->drawBuffer(getApp()->getScreenManager()->getSurface(), 16);
 }
 
 void Rotation::drawText() {
@@ -728,6 +671,16 @@ void Rotation::setAmplitudeAndSpeed(float amplitude, float speed) {
 
 #pragma region Helpers
 
+void Rotation::normalize(ImageHeaderEntry::Vector *vector) {
+	float length = sqrt(vector->x * vector->x + vector->y * vector->y + vector->z * vector->z);
+	if (length == 0.0f)
+		return;
+
+	vector->x /= length;
+	vector->y /= length;
+	vector->z /= length;
+}
+
 SoundItem *Rotation::getSoundItem(Id soundId) {
 	for (Common::Array<SoundItem *>::iterator i = _soundItems.begin(); i != _soundItems.end(); i++) {
 		if ((*i)->getSoundEntry()->getId() == soundId)
@@ -740,6 +693,13 @@ SoundItem *Rotation::getSoundItem(Id soundId) {
 #pragma endregion
 
 #pragma region Serializable
+
+static void syncFloat(Common::Serializer &s, float &value) {
+	uint32 bits;
+	memcpy(&bits, &value, sizeof(bits));
+	s.syncAsUint32LE(bits);
+	memcpy(&value, &bits, sizeof(bits));
+}
 
 void Rotation::saveLoadWithSerializer(Common::Serializer &s) {
 	SaveManager::syncWithFlag(s, _imageHandle);
@@ -759,25 +719,25 @@ void Rotation::saveLoadWithSerializer(Common::Serializer &s) {
 
 	SaveManager::syncArray(s, &_soundItems);
 	s.syncAsByte(_state);
-	s.syncAsUint32LE(_field_31);
-	s.syncAsUint32LE(_field_35);
-	s.syncAsUint32LE(_amplitude);
-	s.syncAsUint32LE(_field_3D);
-	s.syncAsUint32LE(_speed);
-	s.syncAsUint32LE(_field_45);
-	s.syncAsUint32LE(_field_49);
-	s.syncAsUint32LE(_field_4D);
-	s.syncAsUint32LE(_field_51);
-	s.syncAsUint32LE(_field_55);
-	s.syncAsUint32LE(_field_59);
-	s.syncAsUint32LE(_field_5D);
-	s.syncAsUint32LE(_field_61);
+	syncFloat(s, _field_31);
+	syncFloat(s, _field_35);
+	syncFloat(s, _amplitude);
+	syncFloat(s, _field_3D);
+	syncFloat(s, _speed);
+	syncFloat(s, _field_45);
+	syncFloat(s, _field_49);
+	syncFloat(s, _field_4D);
+	syncFloat(s, _field_51);
+	syncFloat(s, _field_55);
+	syncFloat(s, _field_59);
+	syncFloat(s, _field_5D);
+	syncFloat(s, _field_61);
 	s.syncAsByte(_field_65);
 	s.syncAsByte(_field_66);
 	s.syncAsByte(_fre);
-	s.syncAsUint32LE(_alp);
-	s.syncAsUint32LE(_bet);
-	s.syncAsUint32LE(_ran);
+	syncFloat(s, _alp);
+	syncFloat(s, _bet);
+	syncFloat(s, _ran);
 }
 
 #pragma endregion

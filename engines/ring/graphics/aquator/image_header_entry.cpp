@@ -23,363 +23,415 @@
 
 #include "ring/base/stream.h"
 
-#include "ring/graphics/pixel.h"
-
 #include "ring/ring.h"
 
 #include "graphics/surface.h"
 
 namespace Ring {
 
-#define IMAGEHEADER_BUFFER_SIZE 129600
+// The codebook holds 16200 entries of 4 RGB565 pixels (129600 bytes)
+#define CODEBOOK_PIXELS 64800
+
+// Panorama textures are always 2048 pixels wide (the renderer wraps on it)
+#define TEXTURE_WIDTH 2048
 
 ImageHeaderEntry::Header::Header() {
-	field_0  = 0;
-	field_4  = 0;
-	field_8  = 0;
-	field_C  = 0;
-	field_10 = 0;
-	field_14 = 0;
-	field_18 = 0;
-	field_1C = 0;
-	field_20 = 0;
-	start = 0;
-	end = 0;
-	field_2C = 0;
-	field_30 = 0;
-}
-
-void ImageHeaderEntry::Header::update(const Header &header) {
-	field_0  = header.field_0;
-	field_4  = header.field_4;
-	field_8  = header.field_8;
-	field_C  = header.field_C;
-	field_10 = header.field_10;
-	field_14 = header.field_14;
-	field_18 = header.field_18;
-	field_1C = header.field_1C;
-	field_20 = header.field_20;
-	start = header.start;
-	end = header.end;
-	field_2C = header.field_2C;
-	field_30 = header.field_30;
+	width = 0;
+	height = 0;
+	bytesPerPixel = 0;
+	hMin = 0;
+	hMax = 0;
+	vMin = 0;
+	vMax = 0;
+	left = 0;
+	right = 0;
+	top = 0;
+	bottom = 0;
+	size = 0;
+	pitch = 0;
 }
 
 void ImageHeaderEntry::Header::load(Common::SeekableReadStream *stream) {
-	field_0  = stream->readUint32LE();
-	field_4  = stream->readUint32LE();
-	field_8  = stream->readUint32LE();
-	field_C  = stream->readUint32LE();
-	field_10 = convertIEEEFloat(stream->readUint32LE());
-	field_14 = convertIEEEFloat(stream->readUint32LE());
-	field_18 = convertIEEEFloat(stream->readUint32LE());
-	field_1C = stream->readUint32LE();
-	field_20 = stream->readUint32LE();
-	start = stream->readUint32LE();
-	end = stream->readUint32LE();
-	field_2C = stream->readUint32LE();
-	field_30 = stream->readUint32LE();
+	width         = stream->readSint32LE();
+	height        = stream->readSint32LE();
+	bytesPerPixel = stream->readSint32LE();
+	hMin          = convertIEEEFloat(stream->readUint32LE());
+	hMax          = convertIEEEFloat(stream->readUint32LE());
+	vMin          = convertIEEEFloat(stream->readUint32LE());
+	vMax          = convertIEEEFloat(stream->readUint32LE());
+	left          = stream->readSint32LE();
+	right         = stream->readSint32LE();
+	top           = stream->readSint32LE();
+	bottom        = stream->readSint32LE();
+	size          = stream->readSint32LE();
+	pitch         = stream->readSint32LE();
 }
 
-void ImageHeaderEntry::InternalData::init(float a1, float a2, float a3, float a4, float a5, float a6) {
-	field_0 = a3;
-	field_4 = a4;
-	field_8 = a5;
-	field_C = a6;
-	field_10 = a1 - 1;
-	field_14 = a2 - 1;
-	field_18 = 0;
-	field_1C = 0;
+// 0x4057c0
+void ImageHeaderEntry::Header::computeSize() {
+	if (!right)
+		right = width;
+
+	if (!bottom)
+		bottom = height;
+
+	pitch = bytesPerPixel * (right - left);
+	size = pitch * (bottom - top);
 }
 
 ImageHeaderEntry::ImageHeaderEntry() {
-	_buffer      = nullptr;
-	_bufferData  = nullptr;
-	_hasAdditionnalData = false;
+	_codes    = nullptr;
+	_codebook = nullptr;
+	_pixels   = nullptr;
+
+	memset(_gridU, 0, sizeof(_gridU));
+	memset(_gridV, 0, sizeof(_gridV));
 }
 
 ImageHeaderEntry::~ImageHeaderEntry() {
-	free(_buffer);
-	_buffer = nullptr;
-
-	_bufferData = nullptr;
+	reset();
 }
 
 void ImageHeaderEntry::reset() {
-	free(_buffer);
-	_buffer = nullptr;
+	delete[] _codes;
+	delete[] _codebook;
+	delete[] _pixels;
 
-	_bufferData = nullptr;
+	_codes    = nullptr;
+	_codebook = nullptr;
+	_pixels   = nullptr;
 }
 
-void ImageHeaderEntry::init(Common::SeekableReadStream *stream, bool hasAdditionalData) {
+uint32 ImageHeaderEntry::getCodeCount() const {
+	// The exe reads size / 4 bytes of codes
+	return (uint32)_header.size / 8;
+}
+
+// 0x405940
+void ImageHeaderEntry::init(Common::SeekableReadStream *stream, bool isNode) {
 	reset();
 
-	// Read entry header
 	_header.load(stream);
-	initData();
+	_header.computeSize();
 
-	// Allocate buffer and setup pointers
-	_buffer = allocBuffer(hasAdditionalData);
-	if (hasAdditionalData)
-		_bufferData = (byte *)_buffer + IMAGEHEADER_BUFFER_SIZE;
+	if (_header.size < 0 || _header.size > 10000000)
+		error("[ImageHeaderEntry::init] Invalid image size (%d)", _header.size);
 
-	// Read buffers
-	stream->read(_buffer, _header.field_2C / 4);
+	uint32 count = getCodeCount();
+	_codes = new uint16[count];
+	for (uint32 i = 0; i < count; i++)
+		_codes[i] = stream->readUint16LE();
 
-	if (hasAdditionalData)
-		stream->read(_bufferData, IMAGEHEADER_BUFFER_SIZE);
+	if (!isNode)
+		return;
 
-	_hasAdditionnalData = hasAdditionalData;
+	if (_header.width != TEXTURE_WIDTH)
+		error("[ImageHeaderEntry::init] Unsupported panorama width (%d)", _header.width);
+
+	// Read the codebook and convert it to 32bpp (0x403dd0)
+	_codebook = new uint32[CODEBOOK_PIXELS];
+	for (uint32 i = 0; i < CODEBOOK_PIXELS; i++) {
+		uint16 color = stream->readUint16LE();
+
+		uint32 r = (color >> 8) & 0xF8;
+		uint32 g = (color >> 3) & 0xFC;
+		uint32 b = (color << 3) & 0xF8;
+
+		_codebook[i] = (r << 16) | (g << 8) | b;
+	}
+
+	_pixels = new uint32[_header.width * _header.height];
+	memset(_pixels, 0, _header.width * _header.height * sizeof(uint32));
 }
 
+// 0x405900
 void ImageHeaderEntry::init(ImageHeaderEntry *entry) {
 	reset();
 
-	// Copy header information
-	_header.update(entry->getHeader());
-	initData();
+	_header = entry->getHeader();
+	_header.computeSize();
 
-	// Allocate new buffer
-	_buffer = allocBuffer(true);
-	_bufferData = (byte *)_buffer + IMAGEHEADER_BUFFER_SIZE;
-	_hasAdditionnalData = true;
+	_codes = new uint16[getCodeCount()];
 }
 
-void ImageHeaderEntry::initData() {
-	if (!_header.field_20)
-		_header.field_20 = _header.field_0;
+// 0x405a80: copy the node codes covered by the entry rectangle into the entry
+void ImageHeaderEntry::copyCodes(ImageHeaderEntry *entry) const {
+	if (!_codes || !entry->_codes)
+		error("[ImageHeaderEntry::copyCodes] Codes not initialized properly");
 
-	if (!_header.end)
-		_header.end = _header.field_4;
+	const Header &header = entry->getHeader();
+	int32 stride = (header.right - header.left) / 4;
 
-	_header.field_30 = _header.field_8  * (_header.field_20 - _header.field_1C);
-	_header.field_2C = (uint32)(_header.field_30 * (_header.end - _header.start));
-}
+	const uint16 *src = _codes + header.top * (_header.width / 4) + header.left / 4;
+	uint16 *dst = entry->_codes;
 
-void ImageHeaderEntry::updateEntry(ImageHeaderEntry *entry, bool updateFromEntry) {
-	Header header = entry->getHeader();
+	for (int32 row = header.top; row < header.bottom; row++) {
+		memcpy(dst, src, stride * sizeof(uint16));
 
-	int start = header.start;
-	int index = header.field_1C / 4 + (_header.field_0 / 4) * start;
-	int stride = (header.field_20 - header.field_1C) / 4;
-	int delta = _header.field_0 / 4 - stride;
-
-	uint16 *entryBuffer = (uint16 *)entry->getBuffer();
-
-	for (uint16 *buffer = &((uint16 *)_buffer)[index]; start < header.end; buffer += delta)
-	{
-		if (stride <= 0)
-			continue;
-
-		int i = stride;
-		do
-		{
-			if (updateFromEntry)
-			{
-				*buffer = *entryBuffer;
-			} else
-			{
-				*entryBuffer = *buffer;
-			}
-
-			++buffer;
-			++entryBuffer;
-			--i;
-		} while (i);
-
-		++start;
+		src += _header.width / 4;
+		dst += stride;
 	}
 }
 
+// 0x4059b0: decode the entry codes into the node panorama
+void ImageHeaderEntry::decode(const ImageHeaderEntry *entry) {
+	if (!_pixels || !_codebook || !entry->_codes)
+		error("[ImageHeaderEntry::decode] Buffers not initialized properly");
+
+	const Header &header = entry->_header;
+	int32 stride = (header.right - header.left) / 4;
+
+	const uint16 *codes = entry->_codes;
+
+	for (int32 row = header.top; row < header.bottom; row++) {
+		uint32 *dst = _pixels + row * _header.width + header.left;
+
+		for (int32 i = 0; i < stride; i++) {
+			uint16 code = *codes++;
+			if (code >= CODEBOOK_PIXELS / 4)
+				error("[ImageHeaderEntry::decode] Invalid code (%d)", code);
+
+			memcpy(dst, &_codebook[code * 4], 4 * sizeof(uint32));
+			dst += 4;
+		}
+	}
+}
+
+// End of 0x403f80: decode the whole node, the codes are not needed afterwards
+void ImageHeaderEntry::decodeAll() {
+	decode(this);
+
+	delete[] _codes;
+	_codes = nullptr;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Rendering
+//////////////////////////////////////////////////////////////////////////
+
+// 0x403a40 (called with the corners already rotated to world space)
+void ImageHeaderEntry::setCorners(const Vector *corners) {
+	for (uint32 i = 0; i < 4; i++)
+		_corners[i] = corners[i];
+}
+
+// 0x404f80: project every block corner of the view onto the panorama
 void ImageHeaderEntry::process() {
-	error("[ImageHeaderEntry::process] Not implemented");
-}
+	const float pi = (float)M_PI;
 
-void ImageHeaderEntry::prepareBuffer() {
-	int32 *buffer = (int32 *)_bufferData;
-	if (!buffer)
-		error("[ImageHeaderEntry::prepareBuffer] Buffer not initialized properly");
+	float vRange  = _header.vMax - _header.vMin;
+	float vCenter = (_header.vMax + _header.vMin) * 0.5f;
+	float hRange  = _header.hMax - _header.hMin;
+	float hCenter = (_header.hMax + _header.hMin) * 0.5f;
+	float height  = (float)_header.height;
 
-	int count = buffer[8203];
-	if (count < 0)
-		return;
+	for (uint32 row = 0; row <= kGridRows; row++) {
+		for (uint32 col = 0; col <= kGridCols; col++) {
+			// Bilinear interpolation of the corner rays
+			float a = (float)(kGridCols - col);
+			float b = (float)col;
+			float c = (float)(kGridRows - row);
+			float d = (float)row;
 
-	// Prepare buffer chunks
-	int32 *bufferPtr = buffer + 4098;
-	do {
-		for (int i = 0; i < buffer[8202]; i++)
-			Pixel::set(&bufferPtr[i], bufferPtr[i], buffer[8231], buffer[8232]);
+			float x = ((a * _corners[0].x + b * _corners[1].x) / kGridCols * c + (a * _corners[2].x + b * _corners[3].x) / kGridCols * d) / kGridRows;
+			float y = ((a * _corners[0].y + b * _corners[1].y) / kGridCols * c + (a * _corners[2].y + b * _corners[3].y) / kGridCols * d) / kGridRows;
+			float z = ((a * _corners[0].z + b * _corners[1].z) / kGridCols * c + (a * _corners[2].z + b * _corners[3].z) / kGridCols * d) / kGridRows;
 
-		bufferPtr += 64;
-		--count;
-	} while (count > 0);
-}
+			double length = sqrt(x * x + y * y + z * z);
 
-void ImageHeaderEntry::drawBuffer(Graphics::Surface *surface) {
-	int32 *buffer = (int32 *)_bufferData;
-	if (!buffer)
-		error("[ImageHeaderEntry::prepareBuffer] Buffer not initialized properly");
+			double latitude = CLIP<double>(y / length, -1.0, 1.0);
+			latitude = asin(latitude);
 
-	int count = buffer[8203];
-	if (count < 0)
-		return;
+			double cosLatitude = cos(latitude);
+			double longitude = (cosLatitude == 0.0) ? 0.0 : CLIP<double>(x / length / cosLatitude, -1.0, 1.0);
+			longitude = asin(longitude);
 
-	// Setup buffers
-	byte  *surfacePtr = (byte *)surface->getPixels();
-	int32 *bufferPtr  = buffer;
-
-	// Draw buffer to surface
-	do {
-
-		for (int i = 0; i < buffer[8202]; i++) {
-			copyToSurface((int16 *)(buffer + 1),
-			              16,
-			              16,
-			              bufferPtr[i + 2],
-			              bufferPtr[i + 4098],
-			              bufferPtr[i + 3],
-			              bufferPtr[i + 4099],
-			              bufferPtr[i + 66],
-			              bufferPtr[i + 4162],
-			              bufferPtr[i + 67],
-			              bufferPtr[i + 41636],
-			              surfacePtr,
-			              surface->pitch - 32);
-
-			surfacePtr += 32;
-		}
-
-		surfacePtr += surface->pitch * 16; // TODO handle any type of bpp
-		bufferPtr  += 64;
-		--count;
-	} while (count > 0);
-
-	error("[ImageHeaderEntry::drawBuffer] Not implemented");
-}
-
-void ImageHeaderEntry::copyToSurface(int16 *data, int width, int height, int a4, int a5, int a6, int a7, int a8, int a9, int a10, int a11, byte *surface, int pitch) {
-	error("[ImageHeaderEntry::copyToSurface] Not implemented");
-}
-
-void ImageHeaderEntry::computeCoordinates(Common::Point *point) {
-	int32 *buffer = (int32 *)_bufferData;
-	if (!buffer)
-		error("[ImageHeaderEntry::updateBuffer] Buffer not initialized properly");
-
-	// Compute coordinates values
-	Common::Point pointDiv = *point;
-	pointDiv.x /= 16;
-	pointDiv.y /= 16;
-
-	Common::Point pointMod = *point;
-	pointMod.x %= 16;
-	pointMod.y %= 16;
-
-	// Adjust coordinates
-	if (point->x < 0)
-		point->x = 0;
-
-	if (point->x >= (int16)buffer[8200])
-		point->x = buffer[8200] - 1;
-
-	if (point->y < 0)
-		point->y = 0;
-
-	if (point->y >= (int16)buffer[8201])
-		point->y = buffer[8201] - 1;
-
-	int offset = ((uint16)pointDiv.y << 6) + pointDiv.x;
-	float dist = 2048.0f * 0.5f;
-
-	float a1 = (float)buffer[offset + 2]  * 0.000015258789f;
-	float a2 = (float)buffer[offset + 3]  * 0.000015258789f;
-	float a3 = (float)buffer[offset + 66] * 0.000015258789f;
-	float a4 = (float)buffer[offset + 67] * 0.000015258789f;
-
-	warning("[ImageHeaderEntry::computeCoordinates] Possibly invalid coordinate checks");
-
-	// TODO verify comparison
-	if (a1 - a2 < dist) {
-		if (a3 - a1 < dist) {
-			if (a4 - a2 >= dist) {
-				a2 += 2048.0f;
-			} else if (a3 - a4 >= dist) {
-				a4 += 2048.0f;
+			if (z < 0.0f) {
+				if (longitude > 0.0)
+					longitude = pi - longitude;
+				else
+					longitude = -pi - longitude;
 			}
-		} else {
-			a1 += 2048.0f;
-			a2 += 2048.0f;
-			a4 += 2048.0f;
-		}
-	} else {
-		if (a3 - a4 < dist) {
-			a2 += 2048.0f;
 
-			// TODO verify comparison
-			if (a3 - a2 < dist) {
-				a4 += 2048.0f;
-				a3 += 2048.0f;
-			}
-		} else {
-			a4 += 2048.0f;
-			a2 += 2048.0f;
+			double v = (latitude * 180.0 / pi - vCenter) / vRange * height + height * 0.5f;
+			double u = (longitude * 180.0 / pi + hCenter) / hRange * (float)TEXTURE_WIDTH;
+
+			_gridU[row * 64 + col] = (int32)(u * 65536.0f);
+			_gridV[row * 64 + col] = (int32)(v * 65536.0f);
 		}
 	}
-
-	float a5 = (float)buffer[offset + 4098] * 0.000015258789f;
-	float a6 = (float)buffer[offset + 4099] * 0.000015258789f;
-	float a7 = (float)buffer[offset + 4162]  * 0.000015258789f;
-	float a8 = (float)buffer[offset + 4163]  * 0.000015258789f;
-
-	float a9  = (float)(16 - pointMod.x);
-	float a10 = (float)(16 - pointMod.y);
-
-	// Update coordinates
-	point->x = ((a9 * a3 + pointMod.x * a4) * pointMod.y + (a9 * a1 + pointMod.x * a2) * a10       ) * 0.0625f * 0.0625f;
-	point->y = ((a9 * a5 + pointMod.x * a6) * a10        + (a9 * a7 + pointMod.x * a8) * pointMod.y) * 0.0625f * 0.0625f;
-
-	point->x %= 2048;
-	point->y %= buffer[8229];
 }
 
+void ImageHeaderEntry::offsetGrid(uint32 row, uint32 col, int32 u, int32 v) {
+	_gridU[row * 64 + col] += u;
+	_gridV[row * 64 + col] += v;
+}
+
+// 0x4054b0
+void ImageHeaderEntry::clampGrid() {
+	int32 vMax = (_header.height - 2) << 16;
+
+	for (uint32 row = 0; row <= kGridRows; row++)
+		for (uint32 col = 0; col <= kGridCols; col++)
+			_gridV[row * 64 + col] = CLIP<int32>(_gridV[row * 64 + col], 0, vMax);
+}
+
+// 0x405550
+void ImageHeaderEntry::drawBuffer(Graphics::Surface *surface, int32 offsetY) {
+	if (!_pixels)
+		error("[ImageHeaderEntry::drawBuffer] Buffer not initialized properly");
+
+	if (surface->format.bytesPerPixel != 2 && surface->format.bytesPerPixel != 4)
+		error("[ImageHeaderEntry::drawBuffer] Unsupported surface format (%d bpp)", surface->format.bytesPerPixel * 8);
+
+	for (uint32 row = 0; row < kGridRows; row++) {
+		for (uint32 col = 0; col < kGridCols; col++) {
+			uint32 index = row * 64 + col;
+
+			int32 u[4] = { _gridU[index], _gridU[index + 1], _gridU[index + 64], _gridU[index + 65] };
+			int32 v[4] = { _gridV[index], _gridV[index + 1], _gridV[index + 64], _gridV[index + 65] };
+
+			byte *dst = (byte *)surface->getBasePtr(col * 16, offsetY + row * 16);
+
+			drawBlock(u, v, dst, surface->pitch, surface->format);
+		}
+	}
+}
+
+// 0x404570 (MMX): bilinear texture mapping of a 16x16 block
+void ImageHeaderEntry::drawBlock(const int32 *u, const int32 *v, byte *dst, int32 pitch, const Graphics::PixelFormat &format) const {
+	// Fix horizontal wrapping around the panorama seam (0x404780)
+	const int32 period = TEXTURE_WIDTH << 16;
+	int32 uA = u[0];
+	int32 uB = u[1];
+	int32 uC = u[2];
+	int32 uD = u[3];
+
+	int32 *others[3] = { &uB, &uC, &uD };
+	for (uint32 i = 0; i < 3; i++) {
+		if (*others[i] - uA > period / 2)
+			*others[i] -= period;
+		else if (uA - *others[i] > period / 2)
+			*others[i] += period;
+	}
+
+	int32 uLeft  = uA;
+	int32 vLeft  = v[0];
+	int32 uRight = uB;
+	int32 vRight = v[1];
+
+	int32 uLeftStep  = (uC - uA) >> 4;
+	int32 vLeftStep  = (v[2] - v[0]) >> 4;
+	int32 uRightStep = (uD - uB) >> 4;
+	int32 vRightStep = (v[3] - v[1]) >> 4;
+
+	for (uint32 y = 0; y < 16; y++) {
+		int32 uCurrent = uLeft;
+		int32 vCurrent = vLeft;
+		int32 uStep = (uRight - uLeft) >> 4;
+		int32 vStep = (vRight - vLeft) >> 4;
+
+		byte *line = dst;
+
+		for (uint32 x = 0; x < 16; x++) {
+			uint32 tx  = (uint32)(uCurrent >> 16) & (TEXTURE_WIDTH - 1);
+			uint32 tx1 = (tx + 1) & (TEXTURE_WIDTH - 1);
+			uint32 ty  = (uint32)(vCurrent >> 16) & 0x3FF;
+			int32 fx = (uCurrent & 0xFFFF) >> 8;
+			int32 fy = (vCurrent & 0xFFFF) >> 8;
+
+			const uint32 *texel = _pixels + ty * TEXTURE_WIDTH;
+			uint32 p00 = texel[tx];
+			uint32 p01 = texel[tx1];
+			uint32 p10 = texel[TEXTURE_WIDTH + tx];
+			uint32 p11 = texel[TEXTURE_WIDTH + tx1];
+
+			byte rgb[3];
+			for (uint32 i = 0; i < 3; i++) {
+				uint32 shift = 16 - i * 8;
+				int32 c00 = (p00 >> shift) & 0xFF;
+				int32 c01 = (p01 >> shift) & 0xFF;
+				int32 c10 = (p10 >> shift) & 0xFF;
+				int32 c11 = (p11 >> shift) & 0xFF;
+
+				int32 top    = (c00 << 8) + (c01 - c00) * fx;
+				int32 bottom = (c10 << 8) + (c11 - c10) * fx;
+
+				rgb[i] = (byte)(((top << 8) + (bottom - top) * fy) >> 16);
+			}
+
+			uint32 color = format.RGBToColor(rgb[0], rgb[1], rgb[2]);
+			if (format.bytesPerPixel == 2)
+				*(uint16 *)line = (uint16)color;
+			else
+				*(uint32 *)line = color;
+
+			line += format.bytesPerPixel;
+
+			uCurrent += uStep;
+			vCurrent += vStep;
+		}
+
+		uLeft  += uLeftStep;
+		vLeft  += vLeftStep;
+		uRight += uRightStep;
+		vRight += vRightStep;
+
+		dst += pitch;
+	}
+}
+
+// 0x404cd0: screen coordinates to panorama pixel
+void ImageHeaderEntry::computeCoordinates(Common::Point *point) {
+	point->x = CLIP<int16>(point->x, 0, kViewWidth - 1);
+	point->y = CLIP<int16>(point->y, 0, kViewHeight - 1);
+
+	int32 col = point->x / 16;
+	int32 row = point->y / 16;
+	float fx = (float)(point->x % 16);
+	float fy = (float)(point->y % 16);
+
+	uint32 index = row * 64 + col;
+
+	float u00 = _gridU[index]      / 65536.0f;
+	float u01 = _gridU[index + 1]  / 65536.0f;
+	float u10 = _gridU[index + 64] / 65536.0f;
+	float u11 = _gridU[index + 65] / 65536.0f;
+
+	// Fix wrapping around the panorama seam
+	float *others[3] = { &u01, &u10, &u11 };
+	for (uint32 i = 0; i < 3; i++) {
+		if (*others[i] - u00 > TEXTURE_WIDTH * 0.5f)
+			*others[i] -= TEXTURE_WIDTH;
+		else if (u00 - *others[i] > TEXTURE_WIDTH * 0.5f)
+			*others[i] += TEXTURE_WIDTH;
+	}
+
+	float v00 = _gridV[index]      / 65536.0f;
+	float v01 = _gridV[index + 1]  / 65536.0f;
+	float v10 = _gridV[index + 64] / 65536.0f;
+	float v11 = _gridV[index + 65] / 65536.0f;
+
+	int32 x = (int32)((((16 - fx) * u00 + fx * u01) * (16 - fy) + ((16 - fx) * u10 + fx * u11) * fy) * 0.0625f * 0.0625f);
+	int32 y = (int32)((((16 - fx) * v00 + fx * v01) * (16 - fy) + ((16 - fx) * v10 + fx * v11) * fy) * 0.0625f * 0.0625f);
+
+	x %= TEXTURE_WIDTH;
+	if (x < 0)
+		x += TEXTURE_WIDTH;
+
+	point->x = (int16)x;
+	point->y = (int16)(y % _header.height);
+}
+
+// 0x405680: panorama pixel to tenths of degrees (the unit of rotation hotspots)
 void ImageHeaderEntry::adjustCoordinates(Common::Point *point) {
-	uint32 *buffer = (uint32 *)_bufferData;
-	if (!buffer)
-		error("[ImageHeaderEntry::updateCoordinates] Buffer not initialized properly");
+	float height = (float)_header.height;
+	float vRange  = _header.vMax - _header.vMin;
+	float vCenter = (_header.vMax + _header.vMin) * 0.5f;
+	float hRange  = _header.hMax - _header.hMin;
 
-	point->x = (int16)((point->x * (float)buffer[8227] * 10.0f) / 2048.0f);
-	point->y = (int16)((point->y - (float)buffer[8230] * 0.5f) * (float)buffer[8225] / (float)buffer[8230] + (float)buffer[8226] + 10.0f);
-}
-
-void *ImageHeaderEntry::allocBuffer(bool hasAdditionnalData) const {
-	uint32 size = _header.field_2C / 4 + (hasAdditionnalData ? IMAGEHEADER_BUFFER_SIZE : 0);
-
-	void *buffer = malloc(size + 1024);
-	if (!buffer)
-		error("[ImageHeaderEntry::allocBuffer] Cannot allocate buffer of size %d", size + 1024);
-
-	return buffer;
-}
-
-void ImageHeaderEntry::updateData(float a1, float a2, float a3, float a4, float a5, float a6, float a7, float a8) {
-	if (!_bufferData)
-		error("[ImageHeaderEntry::updateData] BufferData not initialized properly");
-
-	int *data = (int *)_bufferData;
-
-	data[8204] = a1;
-	data[8205] = a2;
-	data[8206] = data[8195];
-	data[8207] = a3;
-	data[8208] = a4;
-	data[8209] = data[8195];
-	data[8210] = a5;
-	data[8211] = a6;
-	data[8212] = data[8195];
-	data[8213] = a7;
-	data[8214] = a8;
-	data[8215] = data[8195];
+	point->x = (int16)(point->x / (float)TEXTURE_WIDTH * hRange * 10.0f);
+	point->y = (int16)(((point->y - height * 0.5f) / height * vRange + vCenter) * 10.0f);
 }
 
 } // End of namespace Ring
