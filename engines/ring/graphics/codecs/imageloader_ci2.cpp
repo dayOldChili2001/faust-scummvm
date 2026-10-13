@@ -45,8 +45,6 @@ ImageLoaderCI2::ImageLoaderCI2() {
 	memset(&_header, 0, sizeof(_header));
 	memset(_soundConfigs, 0, ARRAYSIZE(_soundConfigs));
 	_controlTable = nullptr;
-	_widthAndPadding = 0;
-	_stride = 0;
 	_width = 0;
 	_height = 0;
 }
@@ -102,13 +100,7 @@ bool ImageLoaderCI2::init(Common::String filename, ArchiveType archiveType, Zone
 		return false;
 	}
 
-	if (!_cinematic->allocBuffer(_header.width * _header.height + 128)) {
-		warning("[ImageLoaderCIN::init] Error allocating cinematic buffer (%s)", _filename.c_str());
-		return false;
-	}
-
-	if (_header.field_1A)
-		_cinematic->setState(true);
+	_cinematic->setInterlaced(_header.interlaced != 0);
 
 	return true;
 }
@@ -127,7 +119,7 @@ bool ImageLoaderCI2::readHeader() {
 	_header.width             = _cinematic->readUint32LE();
 	_header.height            = _cinematic->readUint32LE();
 	_header.field_19          = _cinematic->readByte();
-	_header.field_1A          = _cinematic->readByte();
+	_header.interlaced        = _cinematic->readByte();
 	_header.soundChannelCount = _cinematic->readByte();
 	_header.controlTableSize  = _cinematic->readUint32LE();
 	_header.field_20          = _cinematic->readUint32LE();
@@ -209,43 +201,26 @@ bool ImageLoaderCI2::readHeader() {
 	return true;
 }
 
-bool ImageLoaderCI2::readImage(ImageSurface *image, byte bitdepth, DrawType drawType) {
+bool ImageLoaderCI2::readImage(ImageSurface *image, byte, DrawType drawType) {
 	if (!_cinematic)
 		error("[ImageLoaderCI2::readImage] Cinematic not initialized properly");
 
 	if (!image)
 		error("[ImageLoaderCI2::readImage] Invalid image pointer");
 
-	if (!image->isInitialized())
-		image->create(bitdepth, 2, _width, _height);
+	// CI2 frames are always decoded to 32bpp. Movies keep the same surface across
+	// frames, since inter frames only update the tiles that changed.
+	const Graphics::PixelFormat format(4, 8, 8, 8, 8, 16, 8, 0, 24);
+	Graphics::Surface *surface = image->getSurface();
+	if (!surface || surface->format != format || surface->w != (int16)_width || surface->h != (int16)_height) {
+		surface = new Graphics::Surface();
+		surface->create((uint16)_width, (uint16)_height, format);
+		image->setSurface(surface);
+	}
 
-	// Compute stride
-	_widthAndPadding = _width + 3;
-	_stride = _widthAndPadding * 3;
-
-	if (drawType == kDrawTypeAlpha) {
-		// Create buffer to hold the data
-		byte *buffer = (byte *)malloc(_height * _stride + 64);
-		if (!buffer) {
-			warning("[ImageLoaderCI2::readImage] Cannot create buffer for image %s", _filename.c_str());
-			return false;
-		}
-
-		if (!_cinematic->sControl(buffer, bitdepth)) {
-			free(buffer);
-
-			warning("[ImageLoaderCI2::readImage] Error when decompressing image %s", _filename.c_str());
-			return false;
-		}
-
-		image->getSurface()->copyRectToSurface(buffer, _stride, 0, 0, _width, _height);
-
-		free(buffer);
-	} else {
-		if (!_cinematic->sControl((byte *)image->getSurface()->getPixels(), bitdepth)) {
-			warning("[ImageLoaderCI2::readImage] Error when decompressing image %s", _filename.c_str());
-			return false;
-		}
+	if (!_cinematic->sControl(surface, drawType == kDrawTypeAlpha)) {
+		warning("[ImageLoaderCI2::readImage] Error when decompressing image %s", _filename.c_str());
+		return false;
 	}
 
 	return true;

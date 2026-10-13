@@ -93,13 +93,11 @@ bool Movie::init(const Common::String &path, Common::String filename, const Comm
 
 load_movie:
 	// Initialize movie stream
-	if (filePath.hasSuffix("cnm")) {
+	_isCI2 = !filePath.hasSuffix("cnm");
+	if (_isCI2)
+		_image = new ImageLoaderCI2();
+	else
 		_image = new ImageLoaderCIN();
-	} else {
-		// TODO: The CI2 decoder (Cinematic2::decompressTControl / decompressSeq) is not implemented yet
-		warning("[Movie::init] CI2 movies are not supported yet, skipping %s", filePath.c_str());
-		return false;
-	}
 
 	if (!_image->init(filePath, kArchiveFile, kZoneNone, kLoadFromCd))
 		error("[Movie::init] Cannot read cinematic frame size");
@@ -247,8 +245,14 @@ void Movie::play(const Common::Point &point) {
 
 					if (((chunkIndex + 1) * _framerate) < tickInterval) {
 						if (readFrame) {
-							if (chunkType == kChunkS)
+							// CI2 inter frames only code changed tiles, so frames
+							// must still be decoded even when they are not drawn
+							if (_isCI2) {
+								if (!_image->readImage(image, 32, kDrawTypeNormal))
+									error("[Movie::play] Chunk %c: Error reading image (index: %d)", chunkType, chunkIndex);
+							} else {
 								cinematic->skipFrame();
+							}
 
 							// Process sound
 							if (soundHandler->getField0()) {
@@ -281,7 +285,7 @@ void Movie::play(const Common::Point &point) {
 					}
 				}
 
-				if (!_image->readImage(image, kChunkS ? 17 : 32, kDrawTypeNormal))
+				if (!_image->readImage(image, _isCI2 ? 32 : 17, kDrawTypeNormal))
 					error("[Movie::play] Chunk S: Error reading image (index: %d)", chunkIndex);
 
 				// Draw frame

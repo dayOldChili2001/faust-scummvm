@@ -26,7 +26,10 @@
 
 #include "ring/shared.h"
 
+#include "common/array.h"
 #include "common/stream.h"
+
+#include "graphics/surface.h"
 
 namespace Ring {
 
@@ -37,40 +40,42 @@ public:
 
 	bool init(Common::String filename, ArchiveType type, ZoneId zone, LoadFrom loadFrom);
 
-	bool allocBuffer(size_t bufferSize);
-
 	void skipFrame() override;
 	bool tControl() override;
-	bool sControl(byte* buffer, uint32 bitdepth);
+	bool sControl(Graphics::Surface *surface, bool useAlpha);
 
-	void setState(bool state) override { _state = state; }
+	// Interlacing comes from the file header, so there is no state to reset
+	void setState(bool) override {}
+	void setInterlaced(bool interlaced) { _interlaced = interlaced; }
 
 private:
+	// Chunk 'T': tile set shared by the following frames
 	struct TControlHeader {
 		uint32 size;
-		uint16 decompressedSize;
-		uint16 bufferSize;
+		uint16 tileCount;
+		uint16 tileSize;    // in dwords (one dword per pixel)
 
 		TControlHeader() {
-			size             = 0;
-			decompressedSize = 0;
-			bufferSize       = 0;
+			size      = 0;
+			tileCount = 0;
+			tileSize  = 0;
 		}
 
 		bool read(Common::SeekableReadStream *stream) {
-			size             = stream->readUint32LE();
-			decompressedSize = stream->readUint16LE();
-			bufferSize       = stream->readUint16LE();
+			size      = stream->readUint32LE();
+			tileCount = stream->readUint16LE();
+			tileSize  = stream->readUint16LE();
 
 			return (!stream->eos() && !stream->err());
 		}
 	};
 
+	// Chunks 'S' and 'U': tile indices, optionally followed by an embedded tile set
 	struct FrameHeader {
 		uint32 size;
-		uint32 offset;
-		uint16 decompressedSize;
-		uint16 bufferSize;
+		uint32 tileOffset;  // offset of the embedded tile set (== size when the frame uses the shared tile set)
+		uint16 tileCount;
+		uint16 tileSize;    // in dwords (one dword per pixel)
 		uint32 width;
 		uint32 height;
 		uint32 field_14;
@@ -83,53 +88,60 @@ private:
 		byte   field_2E;
 
 		FrameHeader() {
-			size             = 0;
-			offset           = 0;
-			decompressedSize = 0;
-			bufferSize       = 0;
-			width          = 0;
-			height         = 0;
-			field_14         = 0;
-			field_18         = 0;
-			field_1C         = 0;
-			field_20         = 0;
-			field_24         = 0;
-			field_28         = 0;
-			field_2C         = 0;
-			field_2E         = 0;
+			size       = 0;
+			tileOffset = 0;
+			tileCount  = 0;
+			tileSize   = 0;
+			width      = 0;
+			height     = 0;
+			field_14   = 0;
+			field_18   = 0;
+			field_1C   = 0;
+			field_20   = 0;
+			field_24   = 0;
+			field_28   = 0;
+			field_2C   = 0;
+			field_2E   = 0;
 		}
 
 		bool read(Common::SeekableReadStream *stream) {
-			size             = stream->readUint32LE();
-			offset           = stream->readUint32LE();
-			decompressedSize = stream->readUint16LE();
-			bufferSize       = stream->readUint16LE();
-			width          = stream->readUint32LE();
-			height         = stream->readUint32LE();
-			field_14         = stream->readUint32LE();
-			field_18         = stream->readUint32LE();
-			field_1C         = stream->readUint32LE();
-			field_20         = stream->readUint32LE();
-			field_24         = stream->readUint32LE();
-			field_28         = stream->readUint32LE();
-			field_2C         = stream->readUint16LE();
-			field_2E         = stream->readByte();
+			size       = stream->readUint32LE();
+			tileOffset = stream->readUint32LE();
+			tileCount  = stream->readUint16LE();
+			tileSize   = stream->readUint16LE();
+			width      = stream->readUint32LE();
+			height     = stream->readUint32LE();
+			field_14   = stream->readUint32LE();
+			field_18   = stream->readUint32LE();
+			field_1C   = stream->readUint32LE();
+			field_20   = stream->readUint32LE();
+			field_24   = stream->readUint32LE();
+			field_28   = stream->readUint32LE();
+			field_2C   = stream->readUint16LE();
+			field_2E   = stream->readByte();
 
 			return (!stream->eos() && !stream->err());
 		}
 	};
 
-	byte            _buffer1[65536];
-	void           *_seqBuffer;
-	bool            _state;
-	byte           *_frameBuffer;
-	byte           *_tControlBuffer;
-	FrameHeader     _frameHeader;
-	TControlHeader  _tControlHeader;
-	// Original stores a flag to know if the data is streamed or not (movie: true - images: false)
+	// Cyclic list of the last 16 tile indices decoded below a given tile index
+	struct TileContext {
+		uint16 list[16];
+		byte   pos;
+	};
 
-	void decompressTControl(byte *buffer, uint32 bufferSize, uint16 decompressedSize);
-	void decompressSeq(byte *buffer);
+	bool                        _interlaced;
+	Common::Array<byte>         _buffer;
+	Common::Array<byte>         _tiles;          // tileCount * tileSize bytes, BGRA
+	uint32                      _tileCount;
+	uint32                      _tileSize;       // in bytes
+	Common::Array<uint16>       _indices;
+	Common::Array<TileContext>  _contexts;
+	FrameHeader                 _frameHeader;
+	TControlHeader              _tControlHeader;
+
+	bool decompressTControl(const byte *data, uint32 dataSize, uint32 tileCount, uint32 tileSize);
+	bool decompressSeq(const byte *data, uint32 dataSize, Graphics::Surface *surface, bool skipEmptyTiles, bool useAlpha);
 };
 
 } // End of namespace Ring

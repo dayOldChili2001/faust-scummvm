@@ -42,7 +42,7 @@ public:
 		uint32 width;
 		uint32 height;
 		byte   field_19;
-		byte   field_1A;
+		byte   interlaced;
 		byte   soundChannelCount;
 		uint32 controlTableSize;
 		uint32 field_20;
@@ -129,8 +129,6 @@ private:
 	Header              _header;
 	SoundConfiguration  _soundConfigs[4];
 	void               *_controlTable;
-	uint32              _widthAndPadding;
-	uint32              _stride;
 	uint32              _width;
 	uint32              _height;
 
