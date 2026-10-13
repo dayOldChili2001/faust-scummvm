@@ -859,9 +859,14 @@ void Application::displayFade(Common::String filenameFrom, Common::String filena
 			_screenManager->drawAndUpdate(imageFrom, Common::Point(0, 16));
 			g_system->updateScreen();
 
-			// Progress to next frame
-			while (animation->getCurrentFrame() == currentFrame)
-				handleEvents();
+			// Progress to next frame. The original only waits here (FAUST.EXE 0x475420):
+			// running the main draw would paint over the fade, and the zone being set
+			// up may not have an active rotation yet.
+			while (animation->getCurrentFrame() == currentFrame) {
+				_vm->pollEvents();
+				_soundManager->updateQueue();
+				g_system->delayMillis(5);
+			}
 
 			uint32 nextFrame = animation->getActiveFrame() + 1;
 			if (nextFrame < currentFrame)

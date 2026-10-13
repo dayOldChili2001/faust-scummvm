@@ -88,7 +88,7 @@ public:
 	// Accessors and helpers
 	Debugger *getRingDebugger() { return (Debugger *)getDebugger(); }
 	Application *getApplication() { return _application; }
-	Common::RandomSource getRandom() const {return _random; }
+	Common::RandomSource &getRandom() { return _random; }
 	bool getFlag() { return _flag; }
 	void setFlag(bool state) { _flag = state; }
 	bool isMouseButtonPressed() { return _mouseButtonPressed; }
