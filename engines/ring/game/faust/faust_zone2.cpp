@@ -278,16 +278,110 @@ void Zone2Faust::onTimer(TimerId id) {
 		_app->soundPlay(11102 + rnd(2));
 		break;
 
-	case kTimer1:
+	case kTimer1: {
 		_app->timerStop(kTimer1);
-		_app->soundSetVolume(11106 + rnd(7), 80);
-		_app->soundPlay(1);
+		Id footstep = 11106 + rnd(7);
+		_app->soundSetVolume(footstep, 80);
+		_app->soundPlay(footstep);
 		break;
+	}
 	}
 }
 
+// FAUST.EXE 0x4ab0b0
 void Zone2Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {
-	error("[Zone2Faust::onButtonUp] Not implemented");
+	_app->objectPresentationHide(kObject25);
+
+	switch (id) {
+	default:
+		break;
+
+	case kObject11001:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->sub_4AC4E0(5);
+		break;
+
+	case kObject11002:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->bagAdd(kObjectHomunculus);
+		_app->sub_4ABA90(6);
+		break;
+
+	case kObject11003:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->setupZone(kZone2, (SetupType)7);
+		break;
+
+	case kObject11004:
+		if (!_app->bagHasClickedObject()) {
+			if (target != 0)
+				break;
+
+			if (_app->varGetByte(11001) == 0) {
+				_app->playMovie("A01S01_E06M02");
+				_app->varSetByte(11001, 1);
+			} else if (_app->varGetByte(11001) == 1) {
+				_app->playMovie("A01S01_E06M03");
+				_app->varSetByte(11001, 2);
+			}
+			break;
+		}
+
+		if ((target == 0 || target == 1) && _app->bagGetClickedObject() == kObjectHomunculus) {
+			_app->playMovie("A01S01_E06M04");
+			_app->playMovie("A01S01N02A05");
+			_app->objectPresentationShow(kObject11004, 0);
+			_app->varSetByte(11002, 1);
+		}
+
+		if (target == 2 && _app->bagGetClickedObject() == kObjectHomunculus && _app->varGetByte(11002) == 1) {
+			_app->playMovie("a01s01n02a04");
+			_app->objectPresentationHide(kObject11004, 0);
+			_app->objectPresentationShow(kObject11004, 1);
+			_app->objectPresentationShow(kObject11004, 2);
+			_app->objectPresentationShow(kObject11004, 3);
+			_app->objectPresentationShow(kObject11004, 4);
+			_app->objectPresentationShow(kObject11004, 5);
+			_app->varSetByte(11003, 1);
+			_app->varSetByte(11002, 0);
+			_app->objectSetAccessibilityOn(kObject11002);
+			_app->objectSetAccessibilityOff(kObject11004, 2, 2);
+			_app->bagRemove(kObjectHomunculus);
+		}
+
+		_app->cursorDelete();
+		break;
+
+	case kObject11005:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->soundPlay(11001);
+		break;
+
+	case kObject11007:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->setupZone(kZone6, (SetupType)11);
+		break;
+	}
 }
 
 void Zone2Faust::onBagClickedObject(ObjectId id) {
@@ -300,8 +394,37 @@ void Zone2Faust::onBeforeRide(Id, Id, uint32, Id, MovabilityType) {
 	_app->objectPresentationHide(kObject25);
 }
 
+// FAUST.EXE 0x4ab3b0
 void Zone2Faust::onAfterRide(Id movabilityFrom, Id movabilityTo, uint32 movabilityIndex, Id target, MovabilityType movabilityType) {
-	error("[Zone2Faust::onAfterRide] Not implemented");
+	if (movabilityType != kMovabilityRotationToRotation)
+		return;
+
+	if (movabilityFrom == 11004) {
+		_app->soundPlay(11113);
+		return;
+	}
+
+	Id footstep = 11106 + rnd(7);
+	_app->soundSetVolume(footstep, 95);
+	_app->soundPlay(footstep);
+	_app->timerStart(kTimer1, 100);
+
+	if (movabilityTo != 11002 || _app->varGetByte(11002) != 1)
+		return;
+
+	if (movabilityFrom == 11003) {
+		_app->objectPresentationHide(kObject11004, 0);
+		_app->soundSetVolume(11114, 100);
+		_app->playMovie("a01s01n02a06");
+	} else if (movabilityFrom == 11005) {
+		_app->objectPresentationHide(kObject11004, 0);
+		_app->soundSetVolume(11114, 80);
+	} else {
+		return;
+	}
+
+	_app->soundPlay(11114);
+	_app->varSetByte(11002, 0);
 }
 
 } // End of namespace Ring

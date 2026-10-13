@@ -796,6 +796,10 @@ void ApplicationFaust::draw() {
 	// Update our screen
 	_screenManager->updateScreen();
 
+	// FAUST.EXE 0x402420: start each frame from the screen position, which drawing a
+	// rotation then converts to panorama coordinates
+	_rotationPoint = _vm->getCoordinates();
+
 	// Update engine state
 	switch (_state){
 	default:
@@ -829,8 +833,8 @@ void ApplicationFaust::draw() {
 		} else {
 			_rotation->alloc();
 			_rotation->update();
-			Common::Point point = _vm->getCoordinates();
-			_rotation->setCoordinates(&point, Common::KEYCODE_INVALID);
+			_rotationPoint = _vm->getCoordinates();
+			_rotation->setCoordinates(&_rotationPoint, Common::KEYCODE_INVALID);
 			_rotation->draw();
 			_rotation->drawText();
 		}
@@ -1137,15 +1141,16 @@ void ApplicationFaust::handleMouseLeftButtonUp(const Common::Point &point) {
 	// Handle current rotation
 	Rotation *currentRotation = getCurrentRotation();
 	if (currentRotation) {
-		if (!currentRotation->getState())
+		// FAUST.EXE 0x4717f2 returns while the rotation is loading or showing an image (state != 0)
+		if (currentRotation->getState())
 			return;
 
-		Accessibility *accessibility = currentRotation->getAccessibility(point);
+		Accessibility *accessibility = currentRotation->getAccessibility(_rotationPoint);
 		if (handleLeftButtonUp(accessibility, currentRotation->getId(), point))
 			return;
 
-		Movability *movability = currentRotation->getMovability(point);
-		if (handleLeftButtonUp(movability, (uint32)currentRotation->getMovabilityIndex(point), currentRotation->getId(), true))
+		Movability *movability = currentRotation->getMovability(_rotationPoint);
+		if (handleLeftButtonUp(movability, (uint32)currentRotation->getMovabilityIndex(_rotationPoint), currentRotation->getId(), true))
 			return;
 
 		if (getField75())
@@ -1377,8 +1382,8 @@ void ApplicationFaust::onMouseLeftButtonDown(const Common::Event &evt) {
 	// Handle current rotation
 	Rotation *currentRotation = getCurrentRotation();
 	if (currentRotation) {
-		Accessibility *accessibility = currentRotation->getAccessibility(evt.mouse);
-		if (handleLeftButtonDown(accessibility, (uint32)currentRotation->getAccessibilityIndex(evt.mouse), currentRotation->getId(), evt.mouse))
+		Accessibility *accessibility = currentRotation->getAccessibility(_rotationPoint);
+		if (handleLeftButtonDown(accessibility, (uint32)currentRotation->getAccessibilityIndex(_rotationPoint), currentRotation->getId(), evt.mouse))
 			return;
 	}
 }
@@ -2308,6 +2313,80 @@ void ApplicationFaust::sub_460150(uint32 type) {
 		soundPlay(91920, kSoundLoop);
 		displayFade("a09_black.bmp", "a09_start.bmp", 12, 0, kLoadFromCd, kArchiveArt);
 		timerStart(kTimer1, 15000);
+		break;
+	}
+}
+
+// FAUST.EXE 0x4aba90: episode 1, travel between A01S01 (zone 2) and A01S03 (zone 4)
+void ApplicationFaust::sub_4ABA90(uint32 type) {
+	switch (type) {
+	default:
+		break;
+
+	case 5:
+		timerStopAll();
+		setSpace(kZone2);
+		rotationSetAlp(11003, 270.0f);
+		rotationSetBet(11003, 0.0f);
+		rotationSetRan(11003, 87.0f);
+		rotationSetActive(11003);
+		timerStart(kTimer0, 1000);
+		objectSetAccessibilityOff(kObject11001);
+		objectSetAccessibilityOff(kObject11003);
+		break;
+
+	case 6:
+		timerStopAll();
+		setSpace(kZone4);
+		rotationSetAlp(13311, 90.0f);
+		rotationSetBet(13311, 0.0f);
+		rotationSetRan(13311, 87.0f);
+		rotationSetActive(13311);
+		soundPlay(13054);
+		break;
+	}
+}
+
+// FAUST.EXE 0x4ac4e0: episode 1, travel between A01S01 (zone 2), A01S02 (zone 3) and A03 (zone 6)
+void ApplicationFaust::sub_4AC4E0(uint32 type) {
+	switch (type) {
+	default:
+		break;
+
+	case 1:
+		setSpace(kZone2);
+		rotationSetAlp(11001, 180.0f);
+		rotationSetBet(11001, 0.0f);
+		rotationSetRan(11001, 87.0f);
+		rotationSetActive(11001);
+		timerStart(kTimer0, 1000);
+		objectSetAccessibilityOff(kObject11002);
+		objectSetAccessibilityOff(kObject11003);
+		objectSetAccessibilityOff(kObject11004);
+		objectSetAccessibilityOff(kObject11005);
+		soundPlay(11105);
+		soundStop(12201, 1024);
+		break;
+
+	case 3:
+		timerStopAll();
+		setSpace(kZone6);
+		rotationSetAlp(31011, 0.0f);
+		rotationSetBet(31011, 0.0f);
+		rotationSetRan(31011, 87.0f);
+		rotationSetActive(31011);
+		break;
+
+	case 5:
+		timerStopAll();
+		setSpace(kZone3);
+		rotationSetAlp(12001, 0.0f);
+		rotationSetBet(12001, 0.0f);
+		rotationSetRan(12001, 87.0f);
+		rotationSetActive(12001);
+		timerStart(kTimer8, 10);
+		soundPlay(12127);
+		soundPlay(12201, kSoundLoop);
 		break;
 	}
 }

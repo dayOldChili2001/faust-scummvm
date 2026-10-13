@@ -578,11 +578,11 @@ void Application::update(const Common::Point &point) {
 	if (_rotation && !_rotation->getState()) {
 
 		// Check accessibilities
-		Accessibility *accessibility = _rotation->getAccessibility(point);
+		Accessibility *accessibility = _rotation->getAccessibility(_rotationPoint);
 		if (accessibility) {
 			Object *object = accessibility->getObject();
 			Hotspot *hotspot = accessibility->getHotspot();
-			uint32 accessibilityIndex = (uint32)_rotation->getAccessibilityIndex(point);
+			uint32 accessibilityIndex = (uint32)_rotation->getAccessibilityIndex(_rotationPoint);
 
 			if (_dragControl->getField20()) {
 				if (_dragControl->getAccessibilityIndex() == accessibilityIndex)
@@ -601,13 +601,13 @@ void Application::update(const Common::Point &point) {
 		}
 
 		// Check movabilities
-		Movability *movability = _rotation->getMovability(point);
+		Movability *movability = _rotation->getMovability(_rotationPoint);
 		if (movability) {
 			Hotspot *hotspot = movability->getHotspot();
 
 			_cursorHandler->select(hotspot->getCursorId());
 
-			onUpdateAfter(_rotation->getId(), movability->getTo(), (uint32)_rotation->getMovabilityIndex(point), hotspot->getTarget(), movability->getType(), point);
+			onUpdateAfter(_rotation->getId(), movability->getTo(), (uint32)_rotation->getMovabilityIndex(_rotationPoint), hotspot->getTarget(), movability->getType(), point);
 			return;
 		}
 	}

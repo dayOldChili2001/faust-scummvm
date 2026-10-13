@@ -287,6 +287,9 @@ Common::MemoryReadStream *CompressedStream::decompressChannel() {
 		uint32 delta = (uint32)stream->pos(); // Delta to beginning of stream (not the starting point when decompressing the channel
 		decodedSize += decodeChannel(stream, 8 * delta, 8 * (delta + channelSize), pBuffer);
 		pBuffer += entrySize - sizeof(header);
+
+		// The next entry follows this one's compressed data (FAUST.EXE 0x410191)
+		stream->seek(delta + channelSize, SEEK_SET);
 	}
 
 	if (decodedSize > (bufferSize + 64))

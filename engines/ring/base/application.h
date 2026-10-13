@@ -291,6 +291,7 @@ public:
 	bool hasCurrentRotation() { return _rotation != nullptr; }
 	Id getCurrentRotationId();
 	Rotation *getCurrentRotation() { return _rotation; }
+	const Common::Point &getRotationPoint() const { return _rotationPoint; }
 	void setupCurrentRotation();
 	void setFreOffCurrentRotation();
 
@@ -505,6 +506,9 @@ protected:
 	Puzzle                       *_puzzle;
 	AssociativeArray<Rotation *>  _rotations;
 	Rotation                     *_rotation;
+	// Mouse position used for rotation hotspots (FAUST.EXE 0x4cf8f4/0x4cf8f8): the screen position,
+	// converted to panorama coordinates while a rotation is drawn
+	Common::Point                 _rotationPoint;
 	Bag                          *_bag;
 	TimerHandler                 *_timerHandler;
 	Var                          *_var;
