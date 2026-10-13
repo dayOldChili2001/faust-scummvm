@@ -37,6 +37,7 @@ public:
 
 	void onInit() override;
 	void onTimer(TimerId id) override;
+	void onKeyDown(const Common::KeyState &keyState) override;
 	void onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) override;
 	void onButtonDown(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) override;
 	void onAnimationNextFrame(Id animationId, const Common::String &name, uint32 frame, uint32 frameCount) override;
@@ -48,6 +49,9 @@ public:
 
 private:
 	ApplicationFaust *_app;
+
+	// Name being typed in the user / savegame lists (global buffer at 0x4dc250 in FAUST.EXE)
+	Common::String _name;
 };
 
 } // End of namespace Ring

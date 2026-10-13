@@ -21,10 +21,13 @@
 
 #include "ring/game/faust/faust_application.h"
 
+#include "ring/base/accessibility.h"
 #include "ring/base/art.h"
 #include "ring/base/bag.h"
 #include "ring/base/cursor.h"
 #include "ring/base/dialog.h"
+#include "ring/base/movability.h"
+#include "ring/base/object.h"
 #include "ring/base/preferences.h"
 #include "ring/base/puzzle.h"
 #include "ring/base/rotation.h"
@@ -51,6 +54,7 @@
 #include "ring/game/faust/faust_zone17.h"
 
 #include "ring/graphics/drag_control.h"
+#include "ring/graphics/hotspot.h"
 #include "ring/graphics/image.h"
 #include "ring/graphics/screen.h"
 
@@ -87,6 +91,7 @@ static const struct {
 ApplicationFaust::ApplicationFaust(RingEngine *engine) : Application(engine) {
 	_slot = -1;
 	_zone = kZoneNone;
+	_controlNotPressed = true;
 
 	// Event handlers
 	_zoneSystem = new ZoneSystemFaust(this);
@@ -246,7 +251,6 @@ void ApplicationFaust::showStartupScreen() {
 }
 
 void ApplicationFaust::startMenu(bool savegame) {
-	// TODO 3 functions
 	initMenuSave(savegame);
 	initMenu2();
 	initMenu3();
@@ -282,7 +286,7 @@ void ApplicationFaust::startMenu(bool savegame) {
 	puzzleSetActive(kPuzzleGeneralMenu, true, true);
 	puzzleSetMod(kPuzzleMenu, 1, 0);
 
-	for (uint32 i = 1; i < 25; i++) {
+	for (uint32 i = 1; i <= 25; i++) {
 		objectSetAccessibilityOff(i);
 		objectPresentationHideAndRemove(i);
 	}
@@ -1032,43 +1036,509 @@ void ApplicationFaust::setupZone(ZoneId zone, SetupType type) {
 
 #pragma region Event handling
 
+// Input handling follows FAUST.EXE: the window procedure (0x401ac0) forwards
+// WM_LBUTTONUP to 0x472060/0x472090 (plain/CTRL click, both ending in 0x470f20),
+// WM_LBUTTONDOWN to 0x470810, WM_RBUTTONUP to 0x4720c0 and WM_CHAR plus
+// VK_DELETE to 0x472150. These are engine routines shared with Ring, so the logic
+// mirrors ApplicationRing, plus the checks Faust's executable adds.
+
 void ApplicationFaust::onMouseLeftButtonUp(const Common::Event &evt, bool isControlPressed) {
-	error("[ApplicationFaust::onMouseLeftButtonUp] Not implemented (evt: %d, CTRL pressed: %d)", evt.type, isControlPressed);
+	_controlNotPressed = !isControlPressed;
+
+	handleMouseLeftButtonUp(evt.mouse);
+}
+
+void ApplicationFaust::handleMouseLeftButtonUp(const Common::Point &point) {
+	// Handle clicks on bag
+	Bag *bag = getBag();
+	if (bag->isInitialized()) {
+		if (bag->checkHotspotClick(point) == 1) {
+			onBagClickedObject(bag->getClickedObject());
+
+			if (getState() == kStateShowMenu)
+				return;
+
+			if (getField77()) {
+				bag->reset();
+				setFreOffCurrentRotation();
+
+				if (getField78()) {
+					initObjectCursors(bag->getClickedObject());
+				} else {
+					setField78(true);
+					cursorDelete();
+				}
+
+				// Center cursor on screen
+				g_system->warpMouse(320, 240);
+			} else {
+				setField77(true);
+				cursorDelete();
+			}
+		}
+
+		return;
+	}
+
+	// Handle clicks on drag control
+	DragControl *dragControl = getDragControl();
+	if (dragControl->getField20()) {
+		bool stopProcessing = (dragControl->getField45() == 2);
+
+		onBag(dragControl->getObjectId(), dragControl->getTarget(), dragControl->getPuzzleRotationId(), dragControl->getField39(), dragControl, 2);
+
+		if (getState() == kStateShowMenu)
+			return;
+
+		dragControl->reset();
+
+		if (stopProcessing)
+			return;
+	}
+
+	// Handle clicks on menu
+	Puzzle *puzzleMenu = getPuzzle(kPuzzleMenu);
+	if (puzzleMenu) {
+		if (puzzleMenu->visualHandleLeftButtonUp(point)) {
+			update(point);
+			return;
+		}
+
+		if (handleLeftButtonUp(getPuzzleAccessibility(puzzleMenu, point), puzzleMenu->getId(), point))
+			return;
+
+		if (puzzleMenu->getField24() == 1) {
+			Movability *movability = puzzleMenu->getMovability(point);
+			if (handleLeftButtonUp(movability, (uint32)puzzleMenu->getMovabilityIndex(point), puzzleMenu->getId()))
+				return;
+		}
+
+		if (puzzleMenu->getField24() == 2)
+			return;
+	}
+
+	// Handle current puzzle
+	Puzzle *currentPuzzle = getCurrentPuzzle();
+	if (currentPuzzle) {
+		if (currentPuzzle->visualHandleLeftButtonUp(point)) {
+			update(point);
+			return;
+		}
+
+		if (handleLeftButtonUp(getPuzzleAccessibility(currentPuzzle, point), currentPuzzle->getId(), point))
+			return;
+
+		Movability *movability = currentPuzzle->getMovability(point);
+		if (handleLeftButtonUp(movability, (uint32)currentPuzzle->getMovabilityIndex(point), currentPuzzle->getId()))
+			return;
+	}
+
+	// Handle current rotation
+	Rotation *currentRotation = getCurrentRotation();
+	if (currentRotation) {
+		if (!currentRotation->getState())
+			return;
+
+		Accessibility *accessibility = currentRotation->getAccessibility(point);
+		if (handleLeftButtonUp(accessibility, currentRotation->getId(), point))
+			return;
+
+		Movability *movability = currentRotation->getMovability(point);
+		if (handleLeftButtonUp(movability, (uint32)currentRotation->getMovabilityIndex(point), currentRotation->getId(), true))
+			return;
+
+		if (getField75())
+			cursorDelete();
+
+		setField75(true);
+	}
+}
+
+Accessibility *ApplicationFaust::getPuzzleAccessibility(Puzzle *puzzle, const Common::Point &point) {
+	Accessibility *accessibility = puzzle->getAccessibility(point);
+
+	// While a puzzle is modal (mod 2, e.g. a message box), only the selected object reacts to clicks
+	if (accessibility && puzzle->getField24() == 2 && accessibility->getObject()->getId() != puzzle->getSelectedId())
+		return nullptr;
+
+	return accessibility;
+}
+
+bool ApplicationFaust::handleLeftButtonUp(Accessibility *accessibility, Id id, const Common::Point &point) {
+	if (!accessibility)
+		return false;
+
+	Object *object = accessibility->getObject();
+	Hotspot *hotspot = accessibility->getHotspot();
+
+	if (object->getFieldC() & 1) {
+		onButtonUp(object->getId(), hotspot->getTarget(), id, 1, point);
+
+		if (getState() == kStateShowMenu)
+			return true;
+	}
+
+	if (!(object->getFieldC() & 8)) {
+		update(point);
+		return true;
+	}
+
+	// The zone dispatcher for this event (0x47a9e0) only reaches empty handlers in Faust
+
+	if (getField74()) {
+		cursorDelete();
+		getBag()->setClickedObject(object->getId());
+		initObjectCursors(object->getId());
+	}
+
+	setField74(true);
+
+	update(point);
+
+	return true;
+}
+
+bool ApplicationFaust::handleLeftButtonUp(Movability *movability, uint32 index, Id id, bool isRotation) {
+	if (!movability)
+		return false;
+
+	Hotspot *hotspot = movability->getHotspot();
+
+	//////////////////////////////////////////////////////////////////////////
+	// Before Ride
+	//////////////////////////////////////////////////////////////////////////
+	onBeforeRide(id, movability->getTo(), index, hotspot->getTarget(), movability->getType());
+
+	if (getState() == kStateShowMenu)
+		return true;
+
+	bool showRide = _controlNotPressed;
+
+	if (isRotation) {
+		int updateType = 2;
+		if (_controlNotPressed)
+			updateType = movability->getUpdateType();
+		else
+			showRide = false;
+
+		switch (updateType) {
+		default:
+			break;
+
+		case 0:
+			showRide = getCurrentRotation()->setRolTo(movability->getAlpBefore(), movability->getBetBefore(), movability->getRanBefore());
+			break;
+
+		case 1:
+			getCurrentRotation()->updateAndDraw(movability->getAlpBefore(), movability->getBetBefore(), movability->getRanBefore());
+			break;
+		}
+	}
+
+	reset();
+
+	switch (movability->getType()) {
+	default:
+		break;
+
+	case kMovabilityRotationToRotation:
+	case kMovabilityPuzzleToRotation:
+		if (isRotation)
+			break;
+
+		if (getRotation(movability->getTo())) {
+			Rotation *rotation = getRotation(movability->getTo());
+
+			float alp = movability->getAlpAfter() - 135.0f;
+			if (alp < 0.0f)
+				alp += 360.0f;
+
+			rotation->setAlp(alp);
+
+			rotation->updateAmbientSoundPan(false);
+
+			getSoundHandler()->setSounds2(rotation->getSoundItems());
+			getSoundHandler()->setField0(true);
+
+			if (!getSoundHandler()->processSounds()) {
+				getSoundHandler()->setField0(false);
+				getSoundHandler()->turnOffSounds1(true);
+			}
+		}
+		break;
+
+	case kMovabilityRotationToPuzzle:
+	case kMovabilityPuzzleToPuzzle:
+		if (getPuzzle(movability->getTo().id())) {
+			Puzzle *puzzle = getPuzzle(movability->getTo().id());
+
+			getSoundHandler()->setSounds2(puzzle->getSoundItems());
+			getSoundHandler()->setField0(true);
+
+			if (!getSoundHandler()->processSounds()) {
+				getSoundHandler()->setField0(false);
+				getSoundHandler()->turnOffSounds1(true);
+			}
+		}
+		break;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+	// Ride
+	//////////////////////////////////////////////////////////////////////////
+	if (showRide)
+		playMovie(movability->getRideName());
+
+	//////////////////////////////////////////////////////////////////////////
+	// After ride
+	//////////////////////////////////////////////////////////////////////////
+	if (getSoundHandler()->getField0()) {
+		getSoundHandler()->turnOffItems1();
+
+		if (!getSoundHandler()->updateItems(2)) {
+			getSoundHandler()->turnOffSounds1(true);
+			getSoundHandler()->setField0(false);
+		}
+	}
+
+	if (getSoundHandler()->getField0()) {
+		getSoundHandler()->updateItems2(3);
+		getSoundHandler()->updateItems3(3);
+	}
+
+	switch (movability->getType()) {
+	default:
+		break;
+
+	case kMovabilityRotationToRotation:
+	case kMovabilityPuzzleToRotation:
+		rotationSetActive(movability->getTo());
+		getCurrentRotation()->updateAndDraw(movability->getAlpAfter(), movability->getBetAfter(), movability->getRanAfter());
+
+		onAfterRide(getCurrentRotationId(), id, index, hotspot->getTarget(), movability->getType());
+
+		if (getState() == kStateShowMenu)
+			return true;
+		break;
+
+	case kMovabilityRotationToPuzzle:
+	case kMovabilityPuzzleToPuzzle:
+		puzzleSetActive(movability->getTo().id());
+
+		onAfterRide(getCurrentRotationId(), id, index, hotspot->getTarget(), movability->getType());
+
+		if (getState() == kStateShowMenu)
+			return true;
+		break;
+	}
+
+	if (getField75())
+		cursorDelete();
+
+	setField75(true);
+
+	return true;
 }
 
 void ApplicationFaust::onMouseLeftButtonDown(const Common::Event &evt) {
-	error("[ApplicationFaust::onMouseLeftButtonDown] Not implemented (evt: %d)", evt.type);
+	if (getBag()->isInitialized())
+		return;
+
+	// Handle menu
+	Puzzle *puzzleMenu = getPuzzle(kPuzzleMenu);
+	if (puzzleMenu) {
+		if (puzzleMenu->visualHandleLeftButtonDown(evt.mouse)) {
+			update(evt.mouse);
+			return;
+		}
+
+		Accessibility *accessibility = getPuzzleAccessibility(puzzleMenu, evt.mouse);
+		if (handleLeftButtonDown(accessibility, (uint32)puzzleMenu->getAccessibilityIndex(evt.mouse), puzzleMenu->getId(), evt.mouse))
+			return;
+
+		if (puzzleMenu->getField24() == 2)
+			return;
+	}
+
+	// Handle current puzzle
+	Puzzle *currentPuzzle = getCurrentPuzzle();
+	if (currentPuzzle) {
+		if (currentPuzzle->visualHandleLeftButtonDown(evt.mouse)) {
+			update(evt.mouse);
+			return;
+		}
+
+		Accessibility *accessibility = getPuzzleAccessibility(currentPuzzle, evt.mouse);
+		if (handleLeftButtonDown(accessibility, (uint32)currentPuzzle->getAccessibilityIndex(evt.mouse), currentPuzzle->getId(), evt.mouse))
+			return;
+	}
+
+	// Handle current rotation
+	Rotation *currentRotation = getCurrentRotation();
+	if (currentRotation) {
+		Accessibility *accessibility = currentRotation->getAccessibility(evt.mouse);
+		if (handleLeftButtonDown(accessibility, (uint32)currentRotation->getAccessibilityIndex(evt.mouse), currentRotation->getId(), evt.mouse))
+			return;
+	}
+}
+
+bool ApplicationFaust::handleLeftButtonDown(Accessibility *accessibility, uint32 index, Id id, const Common::Point &point) {
+	if (!accessibility)
+		return false;
+
+	Object *object = accessibility->getObject();
+	Hotspot *hotspot = accessibility->getHotspot();
+
+	if (object->getFieldC() & 2) {
+		onButtonDown(object->getId(), hotspot->getTarget(), id, 1, point);
+
+		if (getState() == kStateShowMenu)
+			return true;
+	}
+
+	if (!(object->getFieldC() & 4)) {
+		update(point);
+		return true;
+	}
+
+	getDragControl()->init(point, object->getId(), index, hotspot, hotspot->getTarget(), id, 1);
+	onBag(object->getId(), hotspot->getTarget(), id, 1, getDragControl(), 1);
+
+	if (getState() != kStateShowMenu) {
+		if (!getField76())
+			getDragControl()->reset();
+
+		setField76(true);
+		update(point);
+	}
+
+	return true;
 }
 
 void ApplicationFaust::onMouseRightButtonUp(const Common::Event &evt) {
 	debugC(kRingDebugLogic, "onMouseRightButtonUp");
 
-	if (getApp()->getDragControl()->getField20() || getApp()->getCurrentGameZone())
+	if (getDragControl()->getField20() || getCurrentGameZone())
 		return;
 
-	Bag *bag = getApp()->getBag();
+	Puzzle *puzzleMenu = getPuzzle(kPuzzleMenu);
+	if (puzzleMenu && puzzleMenu->getField24() == 2)
+		return;
+
+	Bag *bag = getBag();
 	if (bag->isInitialized()) {
 		bag->reset();
-
-		if (getApp()->getCurrentRotation())
-			bag->setRotationFre(false);
-
+		setFreOffCurrentRotation();
 		return;
 	}
 
-	getApp()->cursorDelete();
+	cursorDelete();
 	sub_45FF30();
 
 	bag->initialize();
 
-	if (getApp()->getCurrentRotation())
-		bag->setRotationFre(getApp()->getCurrentRotation()->getFre());
+	if (getCurrentRotation())
+		bag->setRotationFre(getCurrentRotation()->getFre());
 
-	getApp()->setupCurrentRotation();
+	setupCurrentRotation();
 }
 
 void ApplicationFaust::onKeyDown(Common::Event &evt) {
-	error("[ApplicationFaust::onKeyDown] Not implemented (evt: %d)", evt.type);
+	debugC(kRingDebugLogic, "onKeyDown");
+
+	// Function keys arrive through WM_KEYDOWN in the original, with auto-repeat ignored
+	switch (evt.kbd.keycode) {
+	default:
+		break;
+
+	case Common::KEYCODE_F3:
+		if (!evt.kbdRepeat && getCurrentRotation())
+			getCurrentRotation()->setFreOnOff(!getCurrentRotation()->getFre());
+		return;
+
+	case Common::KEYCODE_F12:
+		if (!evt.kbdRepeat)
+			startMenu(true);
+		return;
+	}
+
+	// Stop dialogs if needed
+	if (evt.kbd.keycode == Common::KEYCODE_ESCAPE)
+		soundStopType(kSoundTypeDialog, 4098);
+
+	// Check menu and simulate button click
+	Puzzle *puzzleMenu = getPuzzle(kPuzzleMenu);
+	if (puzzleMenu) {
+		if (puzzleMenu->visualHandleKey(evt.kbd.keycode))
+			return;
+
+		if (puzzleMenu->getField24() == 2) {
+			Accessibility *accessibility = puzzleMenu->getAccessibility(evt.kbd.keycode);
+			if (!accessibility)
+				return;
+
+			// Center rotation
+			evt.mouse = accessibility->getHotspot()->getCenter();
+			if (hasCurrentRotation())
+				getCurrentRotation()->setCoordinates(&evt.mouse, evt.kbd.keycode);
+
+			simulateClick(evt, (evt.kbd.flags & Common::KBD_CTRL) != 0, true);
+			return;
+		}
+	}
+
+	// Handle events on zone (only the system zone has a key handler in Faust)
+	_zoneSystem->onKeyDown(evt.kbd);
+
+	if (getState() == kStateShowMenu)
+		return;
+
+	// Check current puzzle and simulate button click
+	if (hasCurrentPuzzle()) {
+		Puzzle *currentPuzzle = getCurrentPuzzle();
+
+		if (currentPuzzle->visualHandleKey(evt.kbd.keycode))
+			return;
+
+		Accessibility *accessibility = currentPuzzle->getAccessibility(evt.kbd.keycode);
+		if (!accessibility)
+			return;
+
+		evt.mouse = accessibility->getHotspot()->getCenter();
+
+		simulateClick(evt, (evt.kbd.flags & Common::KBD_CTRL) != 0, false);
+		return;
+	}
+
+	// Check current rotation and simulate button click
+	Rotation *currentRotation = getCurrentRotation();
+	if (currentRotation) {
+		Accessibility *accessibility = currentRotation->getAccessibility(evt.kbd.keycode);
+		if (!accessibility)
+			return;
+
+		evt.mouse = accessibility->getHotspot()->getCenter();
+
+		// Center rotation
+		currentRotation->setCoordinates(&evt.mouse, evt.kbd.keycode);
+
+		simulateClick(evt, (evt.kbd.flags & Common::KBD_CTRL) != 0, false);
+	}
+}
+
+void ApplicationFaust::simulateClick(Common::Event &evt, bool isControlPressed, bool clickTwiceWithBag) {
+	if (getBag()->isInitialized()) {
+		onMouseLeftButtonUp(evt, isControlPressed);
+
+		// For the menu puzzle, a plain click with the bag open is sent twice (the first one closes the bag)
+		if (!clickTwiceWithBag || isControlPressed || getState() == kStateShowMenu)
+			return;
+	}
+
+	onMouseLeftButtonUp(evt, isControlPressed);
+
+	// When the click lands on the top bar, the original then calls 0x470f00,
+	// which only fetches the menu puzzle and has no side effects
 }
 
 void ApplicationFaust::onButtonDown(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {

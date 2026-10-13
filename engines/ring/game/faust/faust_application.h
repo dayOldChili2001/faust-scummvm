@@ -26,6 +26,8 @@
 
 namespace Ring {
 
+class Accessibility;
+class Movability;
 class ZoneSystemFaust;
 class Zone2Faust;
 class Zone3Faust;
@@ -104,6 +106,16 @@ protected:
 	void onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point);
 
 	//////////////////////////////////////////////////////////////////////////
+	// Input helpers
+	//////////////////////////////////////////////////////////////////////////
+	void handleMouseLeftButtonUp(const Common::Point &point);
+	bool handleLeftButtonUp(Accessibility *accessibility, Id id, const Common::Point &point);
+	bool handleLeftButtonUp(Movability *movability, uint32 index, Id id, bool isRotation = false);
+	bool handleLeftButtonDown(Accessibility *accessibility, uint32 index, Id id, const Common::Point &point);
+	void simulateClick(Common::Event &evt, bool isControlPressed, bool clickTwiceWithBag);
+	Accessibility *getPuzzleAccessibility(Puzzle *puzzle, const Common::Point &point);
+
+	//////////////////////////////////////////////////////////////////////////
 	// Zone switching
 	//////////////////////////////////////////////////////////////////////////
 	// TODO Implement zone switch
@@ -143,6 +155,7 @@ private:
 
 	int32 _slot;
 	ZoneId _zone;
+	bool _controlNotPressed;
 
 	// Tracking variables
 	uint32 _currentPresentationIndex;

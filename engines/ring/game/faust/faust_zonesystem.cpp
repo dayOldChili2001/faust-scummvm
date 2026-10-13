@@ -883,6 +883,135 @@ void ZoneSystemFaust::onTimer(TimerId id) {
 	}
 }
 
+// FAUST.EXE 0x45fac0, called for every key press before the puzzle/rotation key handling
+void ZoneSystemFaust::onKeyDown(const Common::KeyState &keyState) {
+	// The original receives WM_CHAR codes, plus VK_DELETE (0x2E) from WM_KEYDOWN. It
+	// doesn't tell them apart, so typing '.' also asks to delete; we only use the Delete key.
+	bool isDelete = (keyState.keycode == Common::KEYCODE_DELETE);
+	uint16 key = keyState.ascii;
+
+	bool isTextInput = _app->getCurrentPuzzleId() == kPuzzlePreferences
+	                || _app->varGetByte(98089)
+	                || _app->getCurrentPuzzleId() == kPuzzleGeneralMenu
+	                || _app->getCurrentZone() == kZone11
+	                || _app->varGetByte(98088);
+
+	if (!isTextInput) {
+		// Space opens the in-game menu
+		if (key != Common::ASCII_SPACE)
+			return;
+
+		_app->varSetWord(97013, (int16)_app->getCurrentZone());
+		_app->setSpace(kZoneSY);
+
+		if (_app->varGetByte(97002))
+			return;
+
+		_app->puzzleSetMod(kPuzzleMenu, 2, kObject14);
+		// The original only logs a warning when there is no current rotation
+		if (_app->hasCurrentRotation())
+			_app->rotationSetFreOn(_app->getCurrentRotationId());
+		_app->objectSetAccessibilityOn(kObject14, 4, 4);
+		_app->objectPresentationShow(kObject14, 0);
+
+		if (_app->varGetByte(98001) >= 3) {
+			_app->objectPresentationShow(kObject14, _app->varGetByte(97006) + 7);
+			_app->objectSetAccessibilityOn(kObject14, 0, 0);
+			_app->objectSetAccessibilityOn(kObject14, 3, 3);
+		} else {
+			_app->objectPresentationShow(kObject14, 1);
+			_app->objectSetAccessibilityOff(kObject14, 0, 0);
+			_app->objectSetAccessibilityOff(kObject14, 3, 3);
+		}
+
+		if (_app->varGetByte(98001) >= 3) {
+			_app->objectPresentationShow(kObject14, 9);
+			_app->objectSetAccessibilityOn(kObject14, 1, 1);
+		} else {
+			_app->objectPresentationShow(kObject14, 3);
+			_app->objectSetAccessibilityOff(kObject14, 1, 1);
+		}
+
+		_app->varSetByte(97002, 1);
+		return;
+	}
+
+	// Text input: only on the preferences screen, or the general menu while a list is being edited
+	if (!_app->hasCurrentPuzzle())
+		return;
+
+	PuzzleId puzzleId = _app->getCurrentPuzzleId();
+	if (puzzleId != kPuzzlePreferences) {
+		if (puzzleId != kPuzzleGeneralMenu)
+			return;
+
+		if (!_app->varGetByte(98004) && !_app->varGetByte(98003))
+			return;
+	}
+
+	if (isDelete) {
+		if (puzzleId == kPuzzleGeneralMenu) {
+			if (_app->varGetByte(98004) && _app->visualListGetObjectIdClicked(1, kPuzzleGeneralMenu)) {
+				_app->messageGet("DoYouWantToDeleteSavedGame");
+				_app->messageShowQuestion(4);
+			}
+
+			if (_app->varGetByte(98003) && _app->visualListGetObjectIdClicked(4, kPuzzleGeneralMenu)) {
+				_app->messageGet("DoYouWantToDeleteSavedGame");
+				_app->messageShowQuestion(8);
+			}
+		} else if (_app->visualListGetObjectIdClicked(3, kPuzzlePreferences)) {
+			_app->messageGet("DoYouWantToDeleteUser");
+			_app->messageShowQuestion(6);
+		}
+
+		return;
+	}
+
+	ObjectId objectId;
+	uint32 presentationIndex;
+	int32 y;
+	if (puzzleId == kPuzzlePreferences) {
+		_app->visualListResetObjectClicked(3, kPuzzlePreferences);
+		objectId = kObject99501;
+		presentationIndex = 0;
+		y = 334;
+	} else {
+		if (!_app->varGetByte(98004))
+			return;
+
+		_app->visualListResetObjectClicked(1, kPuzzleGeneralMenu);
+		objectId = kObject99601;
+		presentationIndex = 1;
+		y = 382;
+	}
+
+	switch (key) {
+	case Common::ASCII_BACKSPACE:
+		if (!_name.empty())
+			_name.deleteLastChar();
+		break;
+
+	case Common::ASCII_RETURN:
+		break;
+
+	case Common::ASCII_ESCAPE:
+		_name.clear();
+		break;
+
+	default:
+		// The original appends any WM_CHAR code; skip keys without a character
+		if (key && _app->objectPresentationGetTextWidth(objectId, presentationIndex, 0) < 150)
+			_name += (char)key;
+		break;
+	}
+
+	_app->objectPresentationSetTextToPuzzle(objectId, presentationIndex, 0, _name);
+
+	uint32 width = _app->objectPresentationGetTextWidth(objectId, presentationIndex, 0);
+	_app->objectPresentationSetAnimationCoordinatesOnPuzzle(objectId, 0, Common::Point(width + 233, y));
+}
+
 void ZoneSystemFaust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {
 	error("[ZoneSystemFaust::onButtonUp] Not implemented");
 }
@@ -994,7 +1123,8 @@ void ZoneSystemFaust::onVisualList(Id id, uint32 type, const Common::Point &) {
 	case 1:
 		if (type == 3) {
 			ObjectId objectId = _app->visualListGetObjectIdClicked(1, kPuzzleGeneralMenu);
-			_app->objectPresentationSetTextToPuzzle(kObject99601, 1, 0, _app->getObject(objectId)->getName());
+			_name = _app->getObject(objectId)->getName();
+			_app->objectPresentationSetTextToPuzzle(kObject99601, 1, 0, _name);
 
 			uint32 width = _app->objectPresentationGetTextWidth(kObject99601, 1, 0);
 			_app->objectPresentationSetAnimationCoordinatesOnPuzzle(kObject99601, 0, Common::Point(width + 233, 384));
@@ -1003,8 +1133,9 @@ void ZoneSystemFaust::onVisualList(Id id, uint32 type, const Common::Point &) {
 
 	case 3:
 		if (type == 3) {
-			ObjectId objectId = _app->visualListGetObjectIdClicked(1, kPuzzlePreferences);
-			_app->objectPresentationSetTextToPuzzle(kObject99501, 0, 0, _app->getObject(objectId)->getName());
+			ObjectId objectId = _app->visualListGetObjectIdClicked(3, kPuzzlePreferences);
+			_name = _app->getObject(objectId)->getName();
+			_app->objectPresentationSetTextToPuzzle(kObject99501, 0, 0, _name);
 
 			uint32 width = _app->objectPresentationGetTextWidth(kObject99501, 0, 0);
 			_app->objectPresentationSetAnimationCoordinatesOnPuzzle(kObject99501, 0, Common::Point(width + 233, 334));
@@ -1013,8 +1144,9 @@ void ZoneSystemFaust::onVisualList(Id id, uint32 type, const Common::Point &) {
 
 	case 4:
 		if (type == 3) {
-			ObjectId objectId = _app->visualListGetObjectIdClicked(1, kPuzzleGeneralMenu);
-			_app->objectPresentationSetTextToPuzzle(kObject99601, 1, 0, _app->getObject(objectId)->getName());
+			ObjectId objectId = _app->visualListGetObjectIdClicked(4, kPuzzleGeneralMenu);
+			_name = _app->getObject(objectId)->getName();
+			_app->objectPresentationSetTextToPuzzle(kObject99601, 1, 0, _name);
 
 			uint32 width = _app->objectPresentationGetTextWidth(kObject99601, 1, 0);
 			_app->objectPresentationSetAnimationCoordinatesOnPuzzle(kObject99601, 0, Common::Point(width + 233, 384));
