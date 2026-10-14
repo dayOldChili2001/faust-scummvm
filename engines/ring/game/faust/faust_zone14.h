@@ -54,8 +54,14 @@ private:
 	int32 _dragValue;
 	int32 _dragPrevious;
 
+	void sub_460490();
 	void sub_4604F0();
+	void sub_4605A0();
+	void sub_460A20();
 	void sub_460AB0();
+	void playMovieWithMusic(const Common::String &name);
+	void showCloseUp(uint32 presentation, uint32 accessibility);
+	void advanceProgress();
 	static bool isInsideQuad(int32 x, int32 y, int32 x1, int32 y1, int32 x2, int32 y2, int32 x3, int32 y3, int32 x4, int32 y4);
 	static int32 wrapDigit(int32 value);
 };
