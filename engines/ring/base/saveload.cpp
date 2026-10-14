@@ -42,7 +42,7 @@
 
 namespace Ring {
 
-#define RING_SAVEGAME_VERSION 1
+#define RING_SAVEGAME_VERSION 2
 static const char *ringSavegameIdentification = "ArxSav";
 
 SaveManager::SaveManager(Application *application) : _app(application) {
@@ -236,6 +236,7 @@ void SaveManager::loadSaveData(LoadSaveType type) {
 	_ser->syncAsUint32LE(_data.state);
 	_ser->syncAsByte(_data.field_6A);
 	_ser->syncAsUint32LE(_data.zone);
+	_ser->syncAsUint32LE(_data.episode);
 	_ser->syncAsByte(_data.hasCurrentPuzzle);
 	_ser->syncAsUint32LE(_data.puzzleId);
 	_ser->syncAsByte(_data.hasCurrentRotation);
@@ -248,9 +249,13 @@ void SaveManager::loadSaveData(LoadSaveType type) {
 	if (_ser->isLoading()) {
 		_app->setState(_data.state);
 		_app->setField6A(_data.field_6A);
-		_app->setupZone(_data.zone, kSetupTypeLoading);
+		// The original saves the space and the episode, and sets up the episode (0x473e9e).
+		// The space is restored in Application::setZone.
+		_app->setupZone(_data.episode, kSetupTypeLoading);
 
 		// We do not close the savegame yet, as it will be closed in loadSaveSounds()
+		// (called from setZone, so _ser is no longer valid here)
+		return;
 	}
 
 	if (_ser->isSaving()) {
@@ -278,6 +283,7 @@ void SaveManager::initialize() {
 	_data.state = _app->getState();
 	_data.field_6A = _app->getField6A();
 	_data.zone = _app->getCurrentZone();
+	_data.episode = _app->getCurrentEpisode();
 
 	_data.hasCurrentPuzzle = _app->hasCurrentPuzzle();
 	_data.puzzleId = _data.hasCurrentPuzzle ? _app->getCurrentPuzzleId() : kPuzzleInvalid;

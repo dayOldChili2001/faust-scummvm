@@ -82,6 +82,7 @@ public:
 		State       state;
 		bool        field_6A;
 		ZoneId      zone;
+		ZoneId      episode;
 		bool        hasCurrentPuzzle;
 		PuzzleId    puzzleId;
 		bool        hasCurrentRotation;
@@ -99,6 +100,7 @@ public:
 			state                = kStateNone;
 			field_6A             = 0;
 			zone                 = kZoneNone;
+			episode              = kZoneNone;
 			hasCurrentPuzzle     = false;
 			puzzleId             = kPuzzleInvalid;
 			hasCurrentRotation   = false;

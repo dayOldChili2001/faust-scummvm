@@ -267,8 +267,8 @@ void SoundManager::saveLoadWithSerializer(Common::Serializer &s) {
 		SoundEntry *entry = (*it);
 
 		int32 volume     = entry->getVolume();
-		int32 multiplier = entry->getVolume();
-		int32 pan        = entry->getVolume();
+		int32 multiplier = entry->getMultiplier();
+		int32 pan        = entry->getPan();
 
 		s.syncAsSint32LE(volume);
 		s.syncAsSint32LE(multiplier);
@@ -315,7 +315,7 @@ void SoundManager::saveLoadWithSerializer(Common::Serializer &s) {
 
 	s.syncAsUint32LE(playingCount);
 
-	for (uint32 i = 0; i < preloadedCount; i++) {
+	for (uint32 i = 0; i < playingCount; i++) {
 		if (s.isSaving()) {
 			s.syncAsUint32LE(_savedSounds[i]->soundId);
 			s.syncAsByte(_savedSounds[i]->loop);
