@@ -4709,9 +4709,13 @@ void Zone14Faust::onAfterRide(Id movabilityFrom, Id movabilityTo, uint32 movabil
 		case 111401:
 			// Passing through the hallway to the room picked in onBeforeRide
 			if (previous == 111201) {
+				// Var 90028 is 0 until the player has left 111403/111405; the original then
+				// only logs errors for the unknown rotation and stays in 111401
 				Id rotationId = (Id)_app->varGetDword(90028);
-				_app->rotationSetAlp(rotationId, 335.0f);
-				_app->rotationSetActive(rotationId);
+				if (rotationId) {
+					_app->rotationSetAlp(rotationId, 335.0f);
+					_app->rotationSetActive(rotationId);
+				}
 				_app->soundPlay(112071);
 			}
 			break;
