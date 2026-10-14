@@ -596,7 +596,8 @@ void Application::update(const Common::Point &point) {
 					_cursorHandler->select(hotspot->getCursorId());
 			}
 
-			onUpdateBefore(object->getId(), hotspot->getTarget(), accessibilityIndex, 0, point);
+			// The original passes the panorama point here (0x4703e9), as zone hover handlers test panorama coordinates
+			onUpdateBefore(object->getId(), hotspot->getTarget(), accessibilityIndex, 0, _rotationPoint);
 			return;
 		}
 
@@ -607,7 +608,7 @@ void Application::update(const Common::Point &point) {
 
 			_cursorHandler->select(hotspot->getCursorId());
 
-			onUpdateAfter(_rotation->getId(), movability->getTo(), (uint32)_rotation->getMovabilityIndex(_rotationPoint), hotspot->getTarget(), movability->getType(), point);
+			onUpdateAfter(_rotation->getId(), movability->getTo(), (uint32)_rotation->getMovabilityIndex(_rotationPoint), hotspot->getTarget(), movability->getType(), _rotationPoint);
 			return;
 		}
 	}
