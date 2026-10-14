@@ -556,7 +556,7 @@ void Zone3Faust::onSetup(SetupType type) {
 		_app->bagRemoveAll();
 		_app->bagAdd(13899);
 		_app->setSpace(kZone14);
-		_app->playMovie("2197");
+		_app->playMovie("A11S02_E02M01");
 		_app->fadeOut(15, Color(0, 0, 0), 0);
 		_app->rotationSetAlp(111101, 180.0f);
 		_app->rotationSetBet(111101, 0.0f);
@@ -571,8 +571,9 @@ void Zone3Faust::onSetup(SetupType type) {
 		_app->timerStopAll();
 		_app->setSpace(kZone10);
 
+		// FAUST.EXE 0x4abe6d sets the progress animation frame (0x4dc040), it doesn't save
 		if (_app->getSaveManager()->getData()->progressState == kProgressState2)
-			_app->getSaveManager()->saveProgress(kProgressState18);
+			_app->getSaveManager()->getData()->progress = 18;
 
 		_app->bagAdd(13899);
 		_app->bagAdd(13129);

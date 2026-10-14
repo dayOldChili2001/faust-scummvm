@@ -385,8 +385,10 @@ public:
 	bool dragControlXEqual();
 	bool dragControlXHigher();
 	bool dragControlYLower0();
+	bool dragControlYEqual0();
 	bool dragControlYHigher0();
 	bool dragControlXLower0();
+	bool dragControlXEqual0();
 	bool dragControlXHigher0();
 	bool dragControlYLower1();
 	bool dragControlYHigher1();

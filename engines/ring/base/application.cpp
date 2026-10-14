@@ -2868,6 +2868,13 @@ bool Application::dragControlYLower0() {
 	return _dragControl->getCurrentCoords().y < _dragControl->getCoords0().y;
 }
 
+bool Application::dragControlYEqual0() {
+	if (!_dragControl)
+		error("[Application::dragControlYEqual0] DragControl not initialized properly!");
+
+	return _dragControl->getCurrentCoords().y == _dragControl->getCoords0().y;
+}
+
 bool Application::dragControlYHigher0() {
 	if (!_dragControl)
 		error("[Application::dragControlYHigher0] DragControl not initialized properly!");
@@ -2880,6 +2887,13 @@ bool Application::dragControlXLower0() {
 		error("[Application::dragControlXLower0] DragControl not initialized properly!");
 
 	return _dragControl->getCurrentCoords().x < _dragControl->getCoords0().x;
+}
+
+bool Application::dragControlXEqual0() {
+	if (!_dragControl)
+		error("[Application::dragControlXEqual0] DragControl not initialized properly!");
+
+	return _dragControl->getCurrentCoords().x == _dragControl->getCoords0().x;
 }
 
 bool Application::dragControlXHigher0() {

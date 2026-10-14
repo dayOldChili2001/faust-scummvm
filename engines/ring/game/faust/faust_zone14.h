@@ -49,6 +49,15 @@ public:
 
 private:
 	ApplicationFaust *_app;
+
+	// Drag puzzle state (exe globals 0x4dc36c and 0x4dc360)
+	int32 _dragValue;
+	int32 _dragPrevious;
+
+	void sub_4604F0();
+	void sub_460AB0();
+	static bool isInsideQuad(int32 x, int32 y, int32 x1, int32 y1, int32 x2, int32 y2, int32 x3, int32 y3, int32 x4, int32 y4);
+	static int32 wrapDigit(int32 value);
 };
 
 } // End of namespace Ring
