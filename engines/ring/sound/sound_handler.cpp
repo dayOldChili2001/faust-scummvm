@@ -253,9 +253,6 @@ bool SoundHandler::processSounds() {
 				else
 					foundType = 2;
 			}
-		} else {
-			// FIXME: Check that this is intended
-			item2 = _sounds2->front();
 		}
 
 		switch (foundType){
