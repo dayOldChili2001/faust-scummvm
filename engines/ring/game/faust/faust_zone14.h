@@ -57,6 +57,8 @@ private:
 	void sub_460490();
 	void sub_4604F0();
 	void sub_4605A0();
+	void sub_4607E0();
+	bool onAlchemyIngredient(Id target);
 	void sub_460A20();
 	void sub_460AB0();
 	void playMovieWithMusic(const Common::String &name);
