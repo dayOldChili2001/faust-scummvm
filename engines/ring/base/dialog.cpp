@@ -176,7 +176,7 @@ void Dialog::parseLyrics(Common::String line) {
 	Common::StringTokenizer tokenizer(line, " ");
 
 	Common::String ticks = tokenizer.nextToken();
-	if (tokenizer.empty())
+	if (ticks.empty())
 		error("[Dialog::parseLyrics] Invalid line format (%s)", line.c_str());
 
 	// First, try parsing ticks
@@ -197,7 +197,8 @@ void Dialog::parseLyrics(Common::String line) {
 	}
 
 	// Parse dialog lines
-	Common::String dialogs = line.begin() + ticks.size() + 1;
+	// A line with only ticks is a blank subtitle (e.g. Faust's e02_35_contract.dia)
+	Common::String dialogs = (line.size() > ticks.size()) ? line.c_str() + ticks.size() + 1 : "";
 	dialogs.trim();
 
 	// A bare "#" is a blank subtitle (both lines empty)
