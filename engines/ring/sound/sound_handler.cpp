@@ -209,18 +209,18 @@ SoundHandler::SoundHandler() {
 }
 
 SoundHandler::~SoundHandler() {
-	CLEAR_ARRAY(SoundItem, _soundItems1);
-	CLEAR_ARRAY(SoundItem, _soundItems2);
-	CLEAR_ARRAY(SoundItem, _soundItems3);
-	CLEAR_ARRAY(SoundItem, _soundItems4);
-
-	// Zero-out passed pointers
-	_sounds1 = nullptr;
-	_sounds2 = nullptr;
+	reset();
 }
 
 void SoundHandler::reset() {
 	_field_0 = false;
+
+	// The sound items belong to their rotation or puzzle
+	_soundItems1.clear();
+	_soundItems2.clear();
+	_soundItems3.clear();
+	_soundItems4.clear();
+
 	_sounds1 = nullptr;
 	_sounds2 = nullptr;
 }
@@ -374,9 +374,6 @@ bool SoundHandler::updateItems2(uint32 chunkCount) {
 
 		if (item->getField3D() <= chunkCount) {
 			item->turnOff();
-
-			// Remove item
-			SAFE_DELETE(item);
 			_soundItems2.remove_at(i);
 		} else {
 			item->setPan1(item->getPan1() + item->getField39());
