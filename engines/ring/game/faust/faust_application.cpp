@@ -1692,7 +1692,9 @@ void ApplicationFaust::onSetup(ZoneId zone, SetupType type) {
 }
 
 void ApplicationFaust::onUpdateBefore(Id movabilityFrom, Id movabilityTo, uint32 movabilityIndex, Id target, const Common::Point &point) {
-	if (movabilityIndex == 1 && target == 1) {
+	// The original (0x47c0a0) checks for puzzle id 1 (kPuzzleMenu) and the menu flag; our callers pass the
+	// accessibility index instead of the puzzle id, and the flag is only set on the menu puzzle anyway
+	if (target == 1) {
 		_zoneSystem->onUpdateBefore(movabilityFrom, movabilityTo, movabilityIndex, target, point);
 		return;
 	}
