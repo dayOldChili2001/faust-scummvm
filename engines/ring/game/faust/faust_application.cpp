@@ -1336,7 +1336,8 @@ bool ApplicationFaust::handleLeftButtonUp(Movability *movability, uint32 index, 
 	case kMovabilityPuzzleToPuzzle:
 		puzzleSetActive(movability->getTo().id());
 
-		onAfterRide(getCurrentRotationId(), id, index, hotspot->getTarget(), movability->getType());
+		// The original passes the new puzzle id here (FAUST.EXE 0x471a04, 0x471f9e)
+		onAfterRide(getCurrentPuzzleId(), id, index, hotspot->getTarget(), movability->getType());
 
 		if (getState() == kStateShowMenu)
 			return true;

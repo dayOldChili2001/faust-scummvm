@@ -3092,8 +3092,8 @@ void Zone14Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32
 
 	case kObjectHandle2:
 		if (_app->bagHasClickedObject()) {
-			if (target == 1 && _app->bagGetClickedObject() == kObjectShowel) {
-				_app->bagRemove(kObjectShowel);
+			if (target == 1 && _app->bagGetClickedObject() == kObjectHandle2) {
+				_app->bagRemove(kObjectHandle2);
 				_app->soundPlay(112019);
 				_app->objectPresentationShow(kObjectHandle2, 1);
 				_app->objectSetAccessibilityOff(kObjectHandle2);
