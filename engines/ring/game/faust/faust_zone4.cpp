@@ -945,8 +945,9 @@ void Zone4Faust::onInit() {
 	_app->objectPresentationShow(kObject13106, (uint32)_app->varGetFloat(13005));
 }
 
+// The exe's setup dispatcher (0x47d090) sends episode 4 to 0x460150, which also resumes play in zones 11/12/13
 void Zone4Faust::onSetup(SetupType type) {
-	error("[EventSetupFaust::onSetupZone4] Not implemented");
+	_app->sub_460150(type);
 }
 
 void Zone4Faust::onTimer(TimerId id) {

@@ -404,7 +404,7 @@ void ApplicationFaust::showMenu(ZoneId zone, MenuAction menuAction) {
 
 		case kMenuAction4:
 			setSpace(kZone14);
-			playMovie("1001");
+			playMovie("A11S02_E02M06");
 			fadeOut(15, Color(0, 0, 0), 0);
 
 			setProgressAndShowMenu(kProgressState3);

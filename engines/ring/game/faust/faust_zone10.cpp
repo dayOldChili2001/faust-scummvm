@@ -24,6 +24,8 @@
 #include "ring/game/faust/faust_application.h"
 #include "ring/game/faust/faust_shared.h"
 
+#include "ring/base/saveload.h"
+
 #include "ring/debug.h"
 #include "ring/ring.h"
 #include "ring/helpers.h"
@@ -232,14 +234,227 @@ void Zone10Faust::onTimer(TimerId id) {
 	}
 }
 
+// FAUST.EXE 0x499de0
 void Zone10Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {
-	error("[Zone10Faust::onButtonUp] Not implemented");
+	switch (id) {
+	default:
+		break;
+
+	case kObjectFuse:
+		if (_app->bagHasClickedObject()) {
+			if (target == 3) {
+				if (_app->bagGetClickedObject() == kObjectRing2) {
+					_app->soundPlay(71006);
+					_app->bagRemove(kObjectRing2);
+					_app->varSetByte(71000, 1);
+					_app->objectSetAccessibilityOff(kObjectFuse, 1, 1);
+					_app->objectSetAccessibilityOn(kObjectRing2, 1, 1);
+					_app->objectPresentationHide(kObjectRing2, 1);
+					_app->objectPresentationShow(kObjectRing2, 3);
+				} else if (_app->bagGetClickedObject() == kObjectFuse) {
+					_app->bagRemove(kObjectFuse);
+					_app->soundPlay(71001);
+					_app->varSetByte(71001, 1);
+					_app->objectSetAccessibilityOff(kObjectFuse, 1, 1);
+					_app->objectSetAccessibilityOn(kObjectFuse, 0, 0);
+					_app->objectPresentationHide(kObjectRing2, 1);
+					_app->objectPresentationHide(kObjectRing2, 3);
+				}
+			} else if (target == 5) {
+				if (_app->bagGetClickedObject() == kObjectRing2) {
+					_app->bagRemove(kObjectRing2);
+					_app->soundPlay(71006);
+					_app->varSetByte(71000, 2);
+					_app->objectSetAccessibilityOff(kObjectFuse, 3, 3);
+					_app->objectSetAccessibilityOn(kObjectRing2, 2, 2);
+					_app->objectPresentationHide(kObjectRing2, 4);
+					_app->objectPresentationShow(kObjectRing2, 2);
+				} else if (_app->bagGetClickedObject() == kObjectFuse) {
+					_app->soundPlay(71001);
+					_app->bagRemove(kObjectFuse);
+					_app->varSetByte(71001, 2);
+					_app->objectSetAccessibilityOff(kObjectFuse, 3, 3);
+					_app->objectSetAccessibilityOn(kObjectFuse, 2, 2);
+					_app->objectPresentationHide(kObjectRing2, 2);
+					_app->objectPresentationShow(kObjectRing2, 4);
+				}
+			}
+
+			if (_app->varGetByte(71000) + _app->varGetByte(71001) > 0)
+				_app->objectPresentationShow(kObjectRing2, 5);
+
+			_app->setField74(false);
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 2) {
+			_app->bagAdd(kObjectFuse);
+			_app->soundPlay(71002);
+			_app->varSetByte(71001, 0);
+			_app->objectSetAccessibilityOff(kObjectFuse, 0, 0);
+			_app->objectSetAccessibilityOn(kObjectFuse, 1, 1);
+			_app->objectPresentationHide(kObjectRing2, 3);
+			_app->objectPresentationShow(kObjectRing2, 1);
+		} else if (target == 4) {
+			_app->bagAdd(kObjectFuse);
+			_app->soundPlay(71002);
+			_app->varSetByte(71001, 0);
+			_app->objectSetAccessibilityOff(kObjectFuse, 2, 2);
+			_app->objectSetAccessibilityOn(kObjectFuse, 3, 3);
+			_app->objectPresentationHide(kObjectRing2, 2);
+			_app->objectPresentationHide(kObjectRing2, 4);
+		} else {
+			_app->setField74(false);
+		}
+
+		if (_app->varGetByte(71000) + _app->varGetByte(71001) == 0)
+			_app->objectPresentationHide(kObjectRing2, 5);
+		break;
+
+	case kObjectRing2:
+		if (_app->bagHasClickedObject()) {
+			_app->setField74(false);
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 2) {
+			_app->bagAdd(kObjectRing2);
+			_app->soundPlay(71005);
+			_app->varSetByte(71000, 0);
+			_app->objectSetAccessibilityOff(kObjectRing2, 1, 1);
+			_app->objectSetAccessibilityOn(kObjectFuse, 1, 1);
+			_app->objectPresentationHide(kObjectRing2, 3);
+			_app->objectPresentationShow(kObjectRing2, 1);
+		} else if (target == 4) {
+			_app->bagAdd(kObjectRing2);
+			_app->soundPlay(71005);
+			_app->varSetByte(71000, 0);
+			_app->objectSetAccessibilityOff(kObjectRing2, 2, 2);
+			_app->objectSetAccessibilityOn(kObjectFuse, 3, 3);
+			_app->objectPresentationHide(kObjectRing2, 4);
+			_app->objectPresentationHide(kObjectRing2, 2);
+		} else {
+			if (target == 0) {
+				_app->bagAdd(kObjectRing2);
+				_app->soundPlay(71005);
+				_app->objectPresentationShow(kObjectRing2, 0);
+			}
+
+			_app->setField74(false);
+		}
+
+		if (_app->varGetByte(71000) + _app->varGetByte(71001) == 0)
+			_app->objectPresentationHide(kObjectRing2, 5);
+		break;
+
+	case kObject71002:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->objectPresentationSetAnimationOnPuzzle(kObject71002, 0, 0, 71000);
+		_app->objectPresentationShow(kObject71002, 0);
+		_app->soundPlay(71008);
+		break;
+
+	case kObject71003:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->playMovie("A07S01N10A02");
+		_app->setupRotation(3);
+		break;
+
+	case kObject71201:
+		if (_app->bagHasClickedObject()) {
+			if (target == 0 && _app->bagGetClickedObject() == kObjectHomunculus) {
+				_app->timerStop(kTimer0);
+				_app->objectPresentationShow(kObject71201, 0);
+				_app->objectPresentationHide(kObject71201, 2);
+				_app->soundPlay(71001);
+				_app->_vm->update();
+				_app->_vm->update();
+				_app->_vm->update();
+				_app->rotationSetRolTo(71006, 90.0f, 20.0f, 87.0f);
+				_app->rotationSetRolTo(71006, 220.0f, 0.0f, 87.0f);
+				_app->playMovie("A07S01_E02M05");
+				_app->rotationSetAlp(71015, 180.0f);
+				_app->rotationSetBet(71015, 0.0f);
+				_app->rotationSetRan(71015, 87.0f);
+				_app->rotationSetActive(71015);
+				_app->objectPresentationShow(kObject71201, 1);
+				_app->objectPresentationHide(kObject71201, 3);
+				_app->objectSetAccessibilityOff(kObject71201, 0, 0);
+				_app->objectSetAccessibilityOn(kObject71201, 1, 1);
+			}
+
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 1) {
+			_app->objectPresentationHide(kObject71201, 1);
+			_app->objectPresentationShow(kObject71201, 3);
+			_app->soundPlay(71002);
+			_app->_vm->update();
+			_app->_vm->update();
+			_app->_vm->update();
+			_app->objectPresentationShow(kObject14, 16);
+			_app->_vm->update();
+			_app->_vm->update();
+			_app->_vm->update();
+			_app->_vm->update();
+			_app->_vm->update();
+			_app->fadeOut(15, Color(0, 0, 0), 0);
+
+			// FAUST.EXE 0x49a4f3 sets the progress animation frame (0x4dc040), it doesn't save
+			if (_app->getSaveManager()->getData()->progressState == kProgressState2)
+				_app->getSaveManager()->getData()->progress = 0x13;
+
+			_app->exitToMenu(kMenuAction4);
+		}
+		break;
+	}
 }
 
+// FAUST.EXE 0x49a6d0
 void Zone10Faust::onAnimationNextFrame(Id animationId, const Common::String &name, uint32 frame, uint32 frameCount) {
-	error("[EventAnimationFaust::onAnimationNextFrameZone10] Not implemented");
+	if (animationId != 71000 || frame != frameCount)
+		return;
+
+	_app->objectPresentationHide(kObject71002);
+
+	int32 count = _app->varGetByte(71000) + _app->varGetByte(71001);
+
+	if (count == 1) {
+		_app->soundPlay(71004);
+		_app->playMovie("A07S01N11A01");
+	} else if (count == 2) {
+		_app->soundPlay(71004);
+		_app->playMovie("A07S01N11A02");
+		_app->soundPlay(71007);
+	} else if (count > 2) {
+		// Advances the progress animation frame (0x4dc040), it doesn't save
+		if (_app->getSaveManager()->getData()->progressState == kProgressState5)
+			_app->getSaveManager()->getData()->progress++;
+
+		_app->soundPlay(71004);
+		_app->playMovie("A07S01N11A02");
+		_app->playMovie("A07S01N11A02b");
+		_app->soundPlay(71007);
+		_app->objectSetAccessibilityOn(kObject71003);
+		_app->objectPresentationShow(kObject71003);
+	}
+
+	_app->objectPresentationShow(kObject71002, 1);
 }
 
+// FAUST.EXE 0x49a5f0 (onAfterRide gets the new rotation first, then the previous one)
 void Zone10Faust::onAfterRide(Id movabilityFrom, Id movabilityTo, uint32 movabilityIndex, Id target, MovabilityType movabilityType) {
 	_app->soundPlay(71009);
 

@@ -628,12 +628,12 @@ void Zone3Faust::onSetup(SetupType type) {
 
 		case 6:
 			_app->setCurrentZone(kZone14);
-			_app->playMovie("1966");
+			_app->playMovie("A11S02_E02M02");
 			break;
 
 		case 7:
 			_app->setCurrentZone(kZone14);
-			_app->playMovie("1001");
+			_app->playMovie("A11S02_E02M06");
 			break;
 		}
 
