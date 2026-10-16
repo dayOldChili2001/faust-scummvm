@@ -24,6 +24,8 @@
 #include "ring/game/faust/faust_application.h"
 #include "ring/game/faust/faust_shared.h"
 
+#include "ring/base/saveload.h"
+
 #include "ring/debug.h"
 #include "ring/ring.h"
 #include "ring/helpers.h"
@@ -1180,8 +1182,200 @@ void Zone12Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32
 	error("[Zone12Faust::onButtonUp] Not implemented");
 }
 
+// FAUST.EXE 0x499060
 void Zone12Faust::onAnimationNextFrame(Id animationId, const Common::String &name, uint32 frame, uint32 frameCount) {
-	error("[EventAnimationFaust::onAnimationNextFrameZone12] Not implemented");
+	switch (animationId) {
+	default:
+		break;
+
+	case 81201:
+		if (frame == 10)
+			_app->puzzleSetActive(kPuzzle81202);
+		break;
+
+	case 81202:
+		if (frame == 1)
+			_app->objectSetAccessibilityOn(kObject81208, 0, 0);
+		break;
+
+	case 81203:
+		if (frame == 15)
+			_app->puzzleSetActive(kPuzzle81201);
+		break;
+
+	case 81204:
+		if (frame == 1)
+			_app->soundPlay(81215);
+		break;
+
+	case 81301:
+		if (frame == 15) {
+			_app->soundPlay(81307);
+
+			if (_app->varGetByte(81015)) {
+				if (!_app->varGetByte(81016)) {
+					_app->objectPresentationShow(kObject81303, 7);
+					_app->varSetByte(81016, 1);
+				} else {
+					_app->objectPresentationHide(kObject81303, 2);
+					_app->objectPresentationShow(kObject81303, 8);
+					_app->varSetByte(81016, 0);
+				}
+			} else {
+				if (!_app->varGetByte(81016)) {
+					_app->objectPresentationShow(kObject81303, 5);
+					_app->varSetByte(81016, 1);
+				} else {
+					_app->objectPresentationHide(kObject81303, 1);
+					_app->objectPresentationShow(kObject81303, 6);
+					_app->varSetByte(81016, 0);
+					_app->objectSetAccessibilityOff(kObject81303, 2, 2);
+				}
+			}
+		} else if (frame == 27) {
+			_app->objectPresentationShow(kObject81303, 4);
+		}
+		break;
+
+	case 81302:
+		if (frame == 1) {
+			_app->objectSetAccessibilityOn(kObject81303, 0, 0);
+			_app->objectSetAccessibilityOn(kObject81303, 3, 3);
+
+			if (!_app->varGetByte(81015) && _app->varGetByte(81016) == 1)
+				_app->objectSetAccessibilityOn(kObject81303, 2, 2);
+		}
+		break;
+
+	case 81303:
+		if (frame == 10)
+			_app->objectPresentationShow(kObject81303, 1);
+		break;
+
+	case 81305:
+		if (frame == 10)
+			_app->objectPresentationShow(kObject81303, 2);
+		break;
+
+	case 81307:
+		if (frame == 10) {
+			_app->puzzleSetActive(kPuzzle81307);
+			_app->objectPresentationHide(kObject81307, 1);
+			_app->soundPlay(81034);
+		}
+		break;
+
+	case 81308:
+		if (frame == 1) {
+			_app->objectSetAccessibilityOn(kObject81307, 1, 1);
+			_app->objectPresentationHide(kObject81307);
+			_app->objectPresentationHide(kObject81306);
+			_app->objectPresentationShow(kObject81306, 4);
+			_app->objectPresentationShow(kObject81306, 5);
+			_app->objectPresentationShow(kObject81306, 6);
+		}
+		break;
+
+	case 81309:
+		if (frame == 10) {
+			_app->objectPresentationHide(kObject81314);
+			_app->objectPresentationShow(kObject81314, 2);
+			_app->objectSetAccessibilityOn(kObject81314, 1, 2);
+		}
+		break;
+
+	case 81310:
+		if (frame == 1) {
+			_app->objectPresentationHide(kObject81314);
+			_app->objectSetAccessibilityOn(kObject81314, 0, 0);
+			_app->varSetByte(81024, 0);
+			_app->soundPlay(81313);
+		}
+		break;
+
+	case 81311:
+		if (frame == 10) {
+			_app->objectPresentationHide(kObject81316);
+			_app->objectPresentationShow(kObject81316, 2);
+			_app->objectSetAccessibilityOn(kObject81315, 2, 2);
+		}
+		break;
+
+	case 81312:
+		if (frame == 1) {
+			_app->objectPresentationHide(kObject81316);
+			_app->objectSetAccessibilityOn(kObject81315, 0, 1);
+			_app->varSetByte(81025, 0);
+			_app->soundPlay(81316);
+		}
+		break;
+
+	case 81313:
+		if (frame == 10) {
+			_app->objectPresentationHide(kObject81317);
+			_app->objectPresentationShow(kObject81317, 2);
+			_app->objectSetAccessibilityOn(kObject81315, 3, 3);
+		}
+		break;
+
+	case 81314:
+		if (frame == 1) {
+			_app->objectPresentationHide(kObject81317);
+			_app->objectSetAccessibilityOn(kObject81315, 0, 1);
+			_app->varSetByte(81026, 0);
+			_app->soundPlay(81316);
+		}
+		break;
+
+	case 81401:
+		if (frame == 15) {
+			_app->puzzleSetActive(kPuzzle81401);
+
+			if (_app->varGetByte(81012) == 1) {
+				_app->soundPlay(81401, kSoundLoop);
+				_app->soundSetVolume(81401, 90);
+				_app->soundSetPan(81401, -5);
+			}
+		}
+		break;
+
+	case 81402:
+		if (frame == 1)
+			_app->objectSetAccessibilityOn(kObject81401, 0, 0);
+		break;
+
+	case 81403:
+		if (frame == 15) {
+			_app->objectPresentationHide(kObject81405);
+			_app->objectSetAccessibilityOn(kObject81405, 1, 2);
+
+			switch (_app->varGetByte(81005)) {
+			default:
+				break;
+
+			case 0:
+				_app->objectPresentationShow(kObject81405, 6);
+				break;
+
+			case 1:
+				_app->objectPresentationShow(kObject81405, 7);
+				break;
+
+			case 2:
+				_app->objectPresentationShow(kObject81405, 8);
+				break;
+			}
+		}
+		break;
+
+	case 81404:
+		if (frame == 1) {
+			_app->objectSetAccessibilityOn(kObject81405, 0, 0);
+			_app->objectPresentationHide(kObject81405);
+			_app->soundPlay(81408);
+		}
+		break;
+	}
 }
 
 void Zone12Faust::onSound(Id id, SoundType type, uint32 a3, bool process) {
@@ -1206,13 +1400,119 @@ void Zone12Faust::onSound(Id id, SoundType type, uint32 a3, bool process) {
 		break;
 
 	case 81041:
-		_app->playMovie("1717");
+		_app->playMovie("A08S03N03A01");
 		break;
 	}
 }
 
+// FAUST.EXE 0x497ac0
 void Zone12Faust::onBag(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, DragControl *dragControl, byte type) {
-	error("[Zone12Faust::onBag] Not implemented");
+	switch (id) {
+	default:
+		break;
+
+	case kObject81201:
+		// Two 60-step dials (81202 driven by target 0 into var 81002, 81203 by target 1 into var 81001)
+		if (target != 0 && target != 1)
+			break;
+
+		switch (type) {
+		default:
+			break;
+
+		case 1:
+			_app->dragControlSetHotspot(Common::Rect(200, 125, 441, 366));
+			_app->dragControlSetCoords1(Common::Point(320, 245));
+			break;
+
+		case 2:
+			if (_app->varGetFloat(81001) != 30.0f)
+				break;
+
+			if (_app->varGetFloat(81002) != 26.0f
+			 && _app->varGetFloat(81002) != 27.0f
+			 && _app->varGetFloat(81002) != 28.0f
+			 && _app->varGetFloat(81002) != 29.0f)
+				break;
+
+			// Advances the progress animation frame (0x4dc040), it doesn't save
+			if (_app->getSaveManager()->getData()->progressState == kProgressState3)
+				_app->getSaveManager()->getData()->progress++;
+
+			_app->soundPlay(81202);
+			_app->rotationSetMovabilityOn(83021, 4, 4);
+			_app->objectPresentationShow(kObject81312);
+			break;
+
+		case 3: {
+			int32 position = ApplicationFaust::getDragAngle(dragControl) * 59 / 360;
+			ObjectId objectId = target ? kObject81203 : kObject81202;
+
+			_app->objectPresentationHide(objectId);
+			_app->objectPresentationShow(objectId, position);
+			_app->varSetFloat(target ? 81001 : 81002, (float)position);
+
+			if (!_app->dragControlYEqual() && !_app->dragControlXEqual())
+				_app->soundPlay(81201);
+			}
+			break;
+		}
+		break;
+
+	case kObject81310:
+		// Two 15-step levers (81308 driven by target 0 into var 81005, 81309 by target 1 into var 81004)
+		if (target != 0 && target != 1)
+			break;
+
+		switch (type) {
+		default:
+			break;
+
+		case 1:
+			_app->cursorDelete();
+			_app->dragControlSetField45(2);
+			_app->soundPlay(81301, kSoundLoop);
+			_app->soundSetVolume(81301, 0);
+			_app->soundSetPan(81301, target ? -5 : 5);
+			break;
+
+		case 2:
+			_app->soundStop(81301, 1024);
+
+			if (_app->varGetFloat(81005) >= 14.0 && _app->varGetFloat(81004) >= 14.0)
+				_app->soundPlay(81014);
+			break;
+
+		case 3: {
+			Id varId = target ? 81004 : 81005;
+			float delta = (float)(_app->dragControlGetOffsetX() * 0.0625);
+
+			// Dragging left lowers lever 0 but raises lever 1
+			if (_app->dragControlXLower())
+				_app->varSetFloat(varId, _app->varGetFloat(varId) + (target ? delta : -delta));
+
+			if (_app->dragControlXHigher())
+				_app->varSetFloat(varId, _app->varGetFloat(varId) + (target ? -delta : delta));
+
+			if (_app->varGetFloat(varId) < 0.0)
+				_app->varSetFloat(varId, 0);
+
+			if (_app->varGetFloat(varId) >= 15.0)
+				_app->varSetFloat(varId, 14.0f);
+
+			ObjectId objectId = target ? kObject81309 : kObject81308;
+			_app->objectPresentationHide(objectId);
+			_app->objectPresentationShow(objectId, (uint32)_app->varGetFloat(varId));
+
+			if (_app->dragControlYEqual() || _app->dragControlXEqual())
+				_app->soundSetVolume(81301, 0);
+			else
+				_app->soundSetVolume(81301, (int32)_app->dragControlGetOffsetX() / 2 + 80);
+			}
+			break;
+		}
+		break;
+	}
 }
 
 void Zone12Faust::onUpdateBag(const Common::Point &point) {
@@ -1247,8 +1547,127 @@ void Zone12Faust::onUpdateBefore(Id movabilityFrom, Id movabilityTo, uint32 mova
 	}
 }
 
+// FAUST.EXE 0x498150
 void Zone12Faust::onAfterRide(Id movabilityFrom, Id movabilityTo, uint32 movabilityIndex, Id target, MovabilityType movabilityType) {
-	error("[EventRideFaust::onAfterRideZone12] Not implemented");
+	Id current = movabilityFrom;
+	Id previous = movabilityTo;
+
+	_app->objectPresentationHide(kObject25);
+
+	switch (movabilityType) {
+	default:
+		break;
+
+	case kMovabilityRotationToRotation:
+		if (previous == 82031) {
+			_app->objectPresentationHide(kObject81211);
+			_app->objectSetAccessibilityOff(kObject81211);
+			_app->objectSetAccessibilityOn(kObject81211, 0, 0);
+
+			if (_app->varGetByte(81030) == 1) {
+				_app->soundPlay(81225);
+				_app->varSetByte(81030, 0);
+			}
+		} else if (previous == 82061) {
+			_app->objectPresentationHide(kObject81217);
+			_app->objectSetAccessibilityOff(kObject81217, 0, 3);
+			_app->objectSetAccessibilityOn(kObject81217, 0, 0);
+			_app->varSetByte(81013, 0);
+
+			if (_app->varGetByte(81031) == 1) {
+				_app->soundPlay(81224);
+				_app->varSetByte(81031, 0);
+			}
+		}
+
+		if (current == 82011 && previous == 81041) {
+			_app->timerStop(kTimer7);
+			_app->timerStop(kTimer8);
+			_app->timerStart(kTimer10, 500);
+			_app->soundStopType(kSoundTypeBackgroundMusic, 1024);
+			_app->soundPlay(81223, kSoundLoop);
+		} else if (current == 81041 && previous == 82011) {
+			_app->timerStart(kTimer7, 1000);
+			_app->timerStart(kTimer8, 500);
+			_app->timerStop(kTimer10);
+			_app->soundStopType(kSoundTypeBackgroundMusic, 1024);
+			_app->soundPlay(81107, kSoundLoop);
+		} else if (current == 83021 && previous == 83031) {
+			_app->soundPlay(81303);
+		} else if (current == 83031 && previous == 83021) {
+			_app->soundPlay(81302);
+		} else if (current == 84011 && previous == 83021) {
+			_app->timerStart(kTimer9, 1000);
+			_app->soundStopType(kSoundTypeBackgroundMusic, 1024);
+			_app->soundStop(81310, 1024);
+		} else if (current == 83021 && previous == 84011) {
+			_app->timerStop(kTimer9);
+			_app->soundStopType(kSoundTypeBackgroundMusic, 1024);
+			_app->soundPlay(81310, kSoundLoop);
+		} else if (current == 83011 && previous == 83021) {
+			_app->soundStopType(kSoundTypeBackgroundMusic, 1024);
+			_app->soundPlay(81223, kSoundLoop);
+		} else if (current == 83021 && previous == 83011) {
+			_app->soundStopType(kSoundTypeBackgroundMusic, 1024);
+			_app->soundPlay(81310, kSoundLoop);
+		}
+		break;
+
+	case kMovabilityRotationToPuzzle:
+		if (previous != 84021 || _app->varGetByte(81012) != 1)
+			break;
+
+		if (current == kPuzzle81402) {
+			_app->soundPlay(81401, kSoundLoop);
+			_app->soundSetPan(81401, -15);
+		} else if (current == kPuzzle81403) {
+			_app->soundPlay(81401, kSoundLoop);
+			_app->soundSetPan(81401, 20);
+		} else if (current == kPuzzle81405) {
+			_app->soundPlay(81401, kSoundLoop);
+			_app->soundSetVolume(81401, 100);
+		}
+		break;
+
+	case kMovabilityPuzzleToRotation:
+		if (current == 82051 && previous == kPuzzle81205) {
+			if (_app->varGetByte(81010) == 1)
+				_app->soundPlay(81211);
+
+			if (_app->varGetByte(81011) == 1)
+				_app->bagAdd(kObjectBoxOfSlides);
+
+			_app->varSetByte(81010, 0);
+			_app->varSetByte(81011, 0);
+			_app->objectPresentationHide(kObject81215);
+			_app->objectPresentationShow(kObject81216);
+			_app->objectSetAccessibilityOff(kObject81215, 2, 9);
+			_app->objectSetAccessibilityOn(kObject81215, 0, 1);
+			_app->soundStop(81212, 1024);
+			break;
+		}
+
+		if (previous == kPuzzle81303 || previous == kPuzzle81304 || previous == kPuzzle81305 || previous == kPuzzle81306)
+			_app->soundPlay(81319);
+
+		if (current != 84021)
+			break;
+
+		if (previous == kPuzzle81404) {
+			_app->objectPresentationShow(kObjectDiaryOfASeducer);
+			_app->objectSetAccessibilityOff(kObjectDiaryOfASeducer);
+			_app->soundPlay(81414);
+			_app->rotationSetMovabilityOff(84021, 2, 2);
+		} else if (previous == kPuzzle81402 || previous == kPuzzle81403 || previous == kPuzzle81405) {
+			if (_app->varGetByte(81012) == 1
+			 && _app->varGetByte(81022) == 1
+			 && _app->bagHas(kObjectDiaryOfASeducer)) {
+				_app->soundStopAll(1024);
+				_app->exitToMenu(kMenuAction0);
+			}
+		}
+		break;
+	}
 }
 
 } // End of namespace Ring
