@@ -2267,7 +2267,8 @@ int8 ApplicationFaust::getChapterIndex() const {
 void ApplicationFaust::sub_460150(uint32 type) {
 	switch (type) {
 	default:
-		error("[ApplicationFaust::sub_460150] Not implemented (type %d)", type);
+		// Other types (e.g. 1000 when loading a savegame) do nothing
+		break;
 
 	case 1:
 		timerStopAll();
@@ -2321,6 +2322,42 @@ void ApplicationFaust::sub_460150(uint32 type) {
 		soundPlay(91920, kSoundLoop);
 		displayFade("a09_black.bmp", "a09_start.bmp", 12, 0, kLoadFromCd, kArchiveArt);
 		timerStart(kTimer1, 15000);
+		break;
+
+	case kSetupType30000:
+		switch (getChapterIndex()) {
+		default:
+			break;
+
+		case 8:
+			setCurrentZone(kZone12);
+			playMovie("A08S01_E03M01");
+			break;
+
+		case 9:
+			setCurrentZone(kZone12);
+			playMovie("A08S01_E03M03");
+			break;
+
+		case 10:
+			setCurrentZone(kZone12);
+			playMovie("A08S03_E03M04");
+			break;
+
+		case 11:
+			setCurrentZone(kZone13);
+			playMovie("A08S03_E03M06");
+			break;
+
+		case 12:
+			setCurrentZone(kZone13);
+			playMovie("A08S04_E03M08");
+			break;
+		}
+
+		setCurrentZone(kZoneSY);
+		soundPlay(90001, kSoundLoop);
+		puzzleSetActive(kPuzzleGeneralMenu);
 		break;
 	}
 }
