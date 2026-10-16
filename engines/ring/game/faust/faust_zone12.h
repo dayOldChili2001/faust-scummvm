@@ -47,6 +47,10 @@ public:
 
 private:
 	ApplicationFaust *_app;
+
+	void advanceProgress();
+	void saveRotation();
+	void setRotation(Id rotationId, float alp, float bet);
 };
 
 } // End of namespace Ring

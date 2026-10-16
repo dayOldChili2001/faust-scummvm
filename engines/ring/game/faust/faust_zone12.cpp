@@ -1178,8 +1178,989 @@ void Zone12Faust::onTimer(TimerId id) {
 	}
 }
 
+// FAUST.EXE 0x494e10
 void Zone12Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {
-	error("[Zone12Faust::onButtonUp] Not implemented");
+	_app->objectPresentationHide(kObject25);
+
+	switch (id) {
+	default:
+		break;
+
+	case kObject81202:
+		if (_app->bagHasClickedObject()) {
+			if (target == 1 && _app->bagGetClickedObject() == kObjectKey3) {
+				_app->soundPlay(81215);
+				_app->objectPresentationShow(kObject81221, 0);
+			}
+
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0) {
+			_app->objectSetAccessibilityOff(kObject81201);
+			_app->objectSetAccessibilityOff(kObject81202);
+			_app->soundPlay(81204, kSoundLoop);
+			_app->timerStart(kTimer0, 50);
+			_app->timerStart(kTimer1, 100);
+		}
+		break;
+
+	case kObject81204:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0) {
+			_app->puzzleSetActive(kPuzzle81214);
+			_app->soundPlay(_app->varGetByte(81003) == 1 ? 81002 : 81020);
+		} else if (target >= 1 && target <= 5) {
+			_app->objectPresentationShow(kObject81204, 1);
+			_app->objectPresentationHide(kObject81204, 0);
+			_app->objectPresentationHide(kObject81204, 2);
+			_app->bagAdd(kObjectFrankFirstPrize);
+			if (target == 1)
+				advanceProgress();
+			_app->playMovie("A08S02N06A03");
+			_app->soundPlay(81216);
+			_app->objectSetAccessibilityOff(kObject81204);
+
+			if (target != 1)
+				setRotation(82061, 353.0f, 0.0f);
+		}
+		break;
+
+	case kObject81205:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0) {
+			_app->puzzleSetActive(kPuzzle81220);
+			_app->soundPlay(_app->varGetByte(81003) == 1 ? 81007 : 81025);
+		} else if (target == 1) {
+			_app->puzzleSetActive(kPuzzle81220);
+			_app->soundPlay(_app->varGetByte(81003) == 1 ? 81006 : 81024);
+		}
+		break;
+
+	case kObject81206:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		switch (target) {
+		default:
+			break;
+
+		case 0:
+		case 3:
+			saveRotation();
+			_app->puzzleSetActive(kPuzzle81216);
+			_app->soundPlay(_app->varGetByte(81003) == 1 ? 81003 : 81021);
+			break;
+
+		case 1:
+		case 4:
+			saveRotation();
+			_app->puzzleSetActive(kPuzzle81217);
+			_app->soundPlay(_app->varGetByte(81003) == 1 ? 81004 : 81022);
+			break;
+
+		case 2:
+		case 5:
+			saveRotation();
+			_app->puzzleSetActive(kPuzzle81218);
+			_app->soundPlay(_app->varGetByte(81003) == 1 ? 81005 : 81023);
+			break;
+
+		case 6:
+		case 7:
+		case 8:
+			// Back to the rotation saved by saveRotation()
+			setRotation(_app->varGetDword(81002), (float)_app->varGetDword(81003), (float)_app->varGetDword(81004));
+			break;
+		}
+		break;
+
+	case kObject81208:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		switch (target) {
+		default:
+			break;
+
+		case 0:
+			_app->objectPresentationShow(kObject81208, 0);
+			_app->objectSetAccessibilityOff(kObject81208, 0, 0);
+			_app->soundPlay(81206);
+			break;
+
+		case 1:
+			if (_app->varGetByte(81008) == 0) {
+				_app->objectPresentationHide(kObject81208);
+				_app->objectPresentationShow(kObject81208, 1);
+				setRotation(82031, 118.0f, 16.0f);
+				_app->soundPlay(81205);
+				break;
+			}
+
+			_app->objectPresentationHide(kObject81208, 2);
+			_app->objectPresentationHide(kObject81208, 3);
+			_app->objectPresentationHide(kObject81220);
+			_app->objectSetAccessibilityOff(kObject81220, 0, 2);
+			_app->objectSetAccessibilityOn(kObject81220, 3, 3);
+			_app->soundStop(81008, 1024);
+			_app->soundStop(81027, 1024);
+			_app->soundStop(81029, 1024);
+			_app->varSetByte(81008, 0);
+			_app->objectSetAccessibilityOn(kObject81208, 2, 2);
+			_app->soundPlay(81210);
+			if (!_app->bagHas(kObjectThinPencil))
+				_app->objectSetAccessibilityOn(kObject81208, 3, 3);
+			break;
+
+		case 3:
+			_app->objectPresentationShow(kObject81208, _app->bagHas(kObjectCompassNeedle) ? 3 : 2);
+			_app->varSetByte(81008, 1);
+			_app->objectSetAccessibilityOff(kObject81208, 2, 4);
+			_app->objectSetAccessibilityOn(kObject81208, 4, 4);
+			_app->soundPlay(81208);
+			break;
+
+		case 4:
+			if (!_app->bagHas(kObjectCompassNeedle)) {
+				_app->objectPresentationHide(kObject81208, 2);
+				_app->objectPresentationShow(kObject81208, 3);
+				_app->bagAdd(kObjectCompassNeedle);
+				advanceProgress();
+				_app->soundPlay(81207);
+			} else {
+				_app->objectPresentationHide(kObject81208, 3);
+				_app->bagAdd(kObjectThinPencil);
+				_app->objectSetAccessibilityOn(kObject81208, 2, 2);
+				_app->objectSetAccessibilityOff(kObject81208, 4, 4);
+				_app->varSetByte(81008, 0);
+			}
+			break;
+		}
+		break;
+
+	case kObject81211:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		switch (target) {
+		default:
+			break;
+
+		case 0:
+			_app->objectPresentationHide(kObject81211);
+			_app->playMovie("A08S02N03A01");
+			_app->varSetByte(81030, 1);
+			if (_app->varGetByte(81003) == 2)
+				_app->objectSetAccessibilityOn(kObject81211, 4, 5);
+
+			if (_app->varGetByte(81009) == 0) {
+				_app->objectPresentationShow(kObject81211, 0);
+				_app->objectSetAccessibilityOff(kObject81211, 0, 0);
+				_app->objectSetAccessibilityOn(kObject81211, 1, 3);
+			}
+
+			if (_app->varGetByte(81009) == 1) {
+				_app->objectPresentationShow(kObject81211, 2);
+				_app->objectSetAccessibilityOff(kObject81211, 0, 0);
+				_app->objectSetAccessibilityOn(kObject81211, 1, 2);
+			}
+
+			if (_app->varGetByte(81009) == 2) {
+				_app->objectPresentationShow(kObject81211, 3);
+				_app->objectSetAccessibilityOff(kObject81211, 0, 0);
+				_app->objectSetAccessibilityOn(kObject81211, 1, 1);
+				_app->objectSetAccessibilityOn(kObject81211, 3, 3);
+			}
+
+			if (_app->varGetByte(81009) == 3) {
+				_app->objectPresentationShow(kObject81211, 1);
+				_app->objectSetAccessibilityOff(kObject81211, 0, 0);
+				_app->objectSetAccessibilityOn(kObject81211, 1, 1);
+			}
+			break;
+
+		case 1:
+			_app->playMovie("A08S02N03A02");
+			_app->varSetByte(81030, 0);
+			_app->soundPlay(81225);
+			_app->objectPresentationHide(kObject81211);
+			_app->objectSetAccessibilityOn(kObject81211, 0, 0);
+			_app->objectSetAccessibilityOff(kObject81211, 1, 5);
+			break;
+
+		case 2:
+			// Take the box of slides
+			_app->objectPresentationHide(kObject81211);
+			if (_app->varGetByte(81009) == 1) {
+				_app->objectPresentationShow(kObject81211, 1);
+				_app->varSetByte(81009, 3);
+			} else {
+				_app->objectPresentationShow(kObject81211, 3);
+				_app->varSetByte(81009, 2);
+			}
+			_app->objectSetAccessibilityOff(kObject81211, 2, 2);
+			_app->bagAdd(kObjectBoxOfSlides);
+			_app->soundPlay(81227);
+			break;
+
+		case 3:
+			// Take the magnifying glass
+			_app->objectPresentationHide(kObject81211);
+			if (_app->varGetByte(81009) == 2) {
+				_app->objectPresentationShow(kObject81211, 1);
+				_app->varSetByte(81009, 3);
+			} else {
+				_app->objectPresentationShow(kObject81211, 2);
+				_app->varSetByte(81009, 1);
+			}
+			_app->objectSetAccessibilityOff(kObject81211, 3, 3);
+			_app->bagAdd(kObjectMagnifyingGlass);
+			_app->soundPlay(81308);
+			break;
+		}
+		break;
+
+	case kObject81215:
+		// Slide projector: var 81010 = lamp on, var 81011 = slides loaded
+		if (_app->bagHasClickedObject()) {
+			if (target == 1) {
+				if (_app->bagGetClickedObject() == kObjectBoxOfSlides) {
+					_app->objectPresentationShow(kObject81215, _app->varGetByte(81010) == 0 ? 0 : 2);
+					_app->varSetByte(81011, 1);
+					_app->bagRemove(kObjectBoxOfSlides);
+					_app->objectSetAccessibilityOff(kObject81215, 1, 1);
+					_app->objectSetAccessibilityOn(kObject81215, 2, 9);
+					_app->soundPlay(81213);
+				}
+
+				_app->cursorDelete();
+				break;
+			}
+
+			// The original doesn't delete the cursor for the other targets
+			if (target >= 2 && target <= 9 && _app->bagGetClickedObject() == kObjectMagnifyingGlass) {
+				_app->puzzleSetActive((PuzzleId)(81204 + target));
+				if (_app->varGetByte(81010) == 1)
+					_app->soundSetVolume(81212, 95);
+			}
+		} else {
+			if (target == 0) {
+				if (_app->varGetByte(81010) == 0) {
+					_app->objectPresentationHide(kObject81215);
+					_app->objectPresentationShow(kObject81215, _app->varGetByte(81011) == 0 ? 1 : 2);
+					_app->varSetByte(81010, 1);
+					_app->objectPresentationHide(kObject81216);
+					_app->soundPlay(81211);
+					_app->soundPlay(81212, kSoundLoop);
+				} else {
+					_app->objectPresentationHide(kObject81215);
+					if (_app->varGetByte(81011) != 0)
+						_app->objectPresentationShow(kObject81215, 0);
+					_app->varSetByte(81010, 0);
+					_app->objectPresentationShow(kObject81216);
+					_app->soundPlay(81211);
+					_app->soundStop(81212, 1024);
+				}
+				break;
+			}
+
+			if (target >= 2 && target <= 9) {
+				// Take the slides back
+				_app->objectPresentationHide(kObject81215);
+				if (_app->varGetByte(81010) != 0)
+					_app->objectPresentationShow(kObject81215, 1);
+				_app->varSetByte(81011, 0);
+				_app->bagAdd(kObjectBoxOfSlides);
+				_app->objectSetAccessibilityOn(kObject81215, 1, 1);
+				_app->objectSetAccessibilityOff(kObject81215, 2, 9);
+			}
+		}
+
+		if (target >= 10 && target <= 17) {
+			_app->puzzleSetActive(kPuzzle81205);
+			if (_app->varGetByte(81010) == 1)
+				_app->soundSetVolume(81212, 90);
+		}
+		break;
+
+	case kObject81217:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		switch (target) {
+		default:
+			break;
+
+		case 0:
+			if (_app->varGetByte(81013) == 0) {
+				_app->objectPresentationShow(kObject81217, 0);
+				_app->varSetByte(81013, 1);
+				_app->soundPlay(81214);
+				break;
+			}
+
+			if (_app->varGetByte(81003) == 1 && !_app->bagHas(kObjectLittleWig)) {
+				_app->objectPresentationHide(kObject81217);
+				_app->objectPresentationShow(kObject81217, 1);
+				_app->objectSetAccessibilityOn(kObject81217, 1, 1);
+				_app->playMovie("A08S02N06A01");
+				_app->soundPlay(81009);
+			} else if (_app->varGetByte(81003) != 1 && !_app->bagHas(kObjectKey3)) {
+				_app->objectPresentationHide(kObject81217);
+				_app->objectPresentationShow(kObject81217, 2);
+				_app->objectSetAccessibilityOn(kObject81217, 2, 2);
+				_app->playMovie("A08S02N06A02");
+				_app->soundPlay(81030);
+			} else {
+				_app->playMovie("A08S02N06A05");
+				_app->objectPresentationHide(kObject81217);
+				_app->objectPresentationShow(kObject81217, 3);
+			}
+
+			_app->objectSetAccessibilityOff(kObject81217, 0, 0);
+			_app->objectSetAccessibilityOn(kObject81217, 3, 3);
+			_app->varSetByte(81031, 1);
+			break;
+
+		case 1:
+			_app->puzzleSetActive(kPuzzle81215);
+			break;
+
+		case 2:
+			_app->objectPresentationHide(kObject81217);
+			_app->objectPresentationShow(kObject81217, 4);
+			_app->puzzleSetActive(kPuzzle81215);
+			break;
+
+		case 3:
+			_app->playMovie("A08S02N06A04");
+			_app->soundPlay(81224);
+			_app->objectPresentationHide(kObject81217);
+			_app->objectSetAccessibilityOff(kObject81217, 0, 3);
+			_app->objectSetAccessibilityOn(kObject81217, 0, 0);
+			_app->varSetByte(81013, 0);
+			_app->varSetByte(81031, 0);
+			break;
+
+		case 4:
+			_app->objectPresentationHide(kObject81217);
+			_app->objectPresentationShow(kObject81217, 3);
+			_app->objectPresentationShow(kObject81217, 5);
+			_app->objectSetAccessibilityOff(kObject81217, 1, 1);
+			_app->objectSetAccessibilityOff(kObject81217, 4, 4);
+			_app->bagAdd(kObjectLittleWig);
+			_app->soundPlay(81226);
+			break;
+
+		case 5:
+			_app->objectPresentationHide(kObject81217);
+			_app->objectPresentationShow(kObject81217, 3);
+			_app->objectPresentationShow(kObject81217, 5);
+			_app->objectSetAccessibilityOff(kObject81217, 2, 2);
+			_app->objectSetAccessibilityOff(kObject81217, 5, 5);
+			_app->bagAdd(kObjectKey3);
+			_app->soundPlay(81227);
+			break;
+		}
+		break;
+
+	case kObject81220:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->varSetByte(81008, 1);
+		_app->objectSetAccessibilityOff(kObject81208, 2, 4);
+
+		switch (target) {
+		default:
+			break;
+
+		case 3:
+			_app->objectPresentationHide(kObject81220);
+			_app->objectSetAccessibilityOff(kObject81220, 3, 3);
+			_app->objectSetAccessibilityOn(kObject81220, 0, 0);
+			_app->objectPresentationShow(kObject81220, 0);
+			if (_app->varGetByte(81003) == 2) {
+				_app->objectSetAccessibilityOn(kObject81220, 0, 2);
+				_app->objectPresentationShow(kObject81220, 1);
+				_app->objectPresentationShow(kObject81220, 2);
+			}
+			break;
+
+		case 0:
+		case 1:
+		case 2:
+			_app->soundPlay(81209);
+			_app->soundPlay(target == 0 ? 81008 : (target == 1 ? 81027 : 81029));
+			_app->objectPresentationHide(kObject81220);
+			_app->objectPresentationShow(kObject81220, 3 * target);
+			if (_app->varGetByte(81003) == 2) {
+				_app->objectPresentationShow(kObject81220, 3 * target + 1);
+				_app->objectPresentationShow(kObject81220, 3 * target + 2);
+			}
+			break;
+		}
+		break;
+
+	case kObject81222:
+		// Clock: target 0 = hours (var 81029, 1..12), target 1 = minutes (var 81028, 1..59), target 2 = check
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->soundPlay(81236);
+		_app->timerStart(kTimer11, 50);
+
+		if (target == 0) {
+			_app->objectPresentationShow(kObject81222, 0);
+			_app->varSetByte(81029, _app->varGetByte(81029) + 1);
+			if ((int8)_app->varGetByte(81029) > 12)
+				_app->varSetByte(81029, 1);
+		} else if (target == 1) {
+			_app->objectPresentationShow(kObject81222, 1);
+			_app->varSetByte(81028, _app->varGetByte(81028) + 1);
+			if ((int8)_app->varGetByte(81028) > 59)
+				_app->varSetByte(81028, 1);
+		} else if (target == 2) {
+			_app->objectPresentationShow(kObject81222, 2);
+			if (_app->varGetByte(81029) == 5 && _app->varGetByte(81028) == 30 && _app->varGetByte(81003) == 2) {
+				_app->soundPlay(81202);
+				_app->rotationSetMovabilityOn(83021, 4, 4);
+				_app->objectPresentationShow(kObject81312);
+			}
+			_app->varSetByte(81029, 0);
+			_app->varSetByte(81028, 0);
+		}
+		break;
+
+	case kObject81301:
+		if (!_app->bagHasClickedObject()) {
+			_app->soundPlay(81010);
+			break;
+		}
+
+		if (_app->bagGetClickedObject() == kObjectHomunculus) {
+			_app->objectPresentationShow(kObject81301, 0);
+			_app->soundPlay(81011);
+		}
+
+		if (_app->bagGetClickedObject() == kObjectThinPencil) {
+			_app->objectPresentationHide(kObject81301);
+			_app->rotationSetMovabilityOn(83011, 0, 0);
+			_app->objectSetAccessibilityOff(kObject81301);
+			_app->playMovie("a08s03n01a01");
+			_app->objectPresentationShow(kObject81904, 2);
+			advanceProgress();
+		}
+
+		_app->cursorDelete();
+		break;
+
+	case kObject81302:
+		if (!_app->bagHasClickedObject())
+			break;
+
+		if (_app->bagGetClickedObject() == kObjectCompassNeedle) {
+			_app->objectPresentationHide(kObject81302);
+			_app->objectPresentationShow(kObject81302, 3);
+			_app->objectSetAccessibilityOff(kObject81302);
+			_app->bagRemove(kObjectCompassNeedle);
+			_app->soundPlay(81321);
+		}
+
+		_app->cursorDelete();
+		break;
+
+	case kObject81303:
+		if (_app->bagHasClickedObject()) {
+			if (target == 1 && _app->bagGetClickedObject() == kObjectLittleWig) {
+				_app->soundPlay(81305);
+				_app->objectPresentationHide(kObject81303, 0);
+				_app->objectPresentationHide(kObject81303, 9);
+				_app->objectPresentationHide(kObject81303, 10);
+				_app->bagRemove(kObjectLittleWig);
+				_app->varSetByte(81014, 1);
+			}
+
+			_app->cursorDelete();
+			break;
+		}
+
+		switch (target) {
+		default:
+			break;
+
+		case 0:
+			if (_app->varGetByte(81014) != 1)
+				break;
+
+			_app->soundPlay(81306);
+			_app->objectPresentationShow(kObject81303, 3);
+			_app->objectSetAccessibilityOff(kObject81303, 0, 0);
+			_app->objectSetAccessibilityOff(kObject81303, 3, 3);
+			_app->soundPlay(_app->varGetByte(81003) == 1 ? 81019 : 81041);
+			break;
+
+		case 2:
+			_app->bagAdd(kObjectKey4);
+			advanceProgress();
+			_app->varSetByte(81015, 1);
+			_app->objectPresentationHide(kObject81303, 1);
+			_app->objectPresentationShow(kObject81303, 2);
+			_app->objectSetAccessibilityOff(kObject81303, 2, 2);
+			_app->soundPlay(81308);
+			break;
+
+		case 3:
+			_app->objectSetAccessibilityOn(kObject81303, 0, 1);
+			_app->objectSetAccessibilityOff(kObject81303, 2, 2);
+			for (uint32 i = 1; i <= 8; i++)
+				_app->objectPresentationHide(kObject81303, i);
+
+			if (_app->varGetByte(81016) == 1) {
+				_app->soundPlay(81307);
+				_app->timerStart(kTimer6, 400);
+				_app->varSetByte(81016, 0);
+				_app->objectPresentationShow(kObject81303, _app->varGetByte(81015) == 0 ? 6 : 8);
+			} else {
+				setRotation(83031, 334.0f, 16.0f);
+			}
+			break;
+		}
+		break;
+
+	case kObject81305:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0) {
+			if (_app->varGetByte(81003) == 1) {
+				_app->puzzleSetActive(kPuzzle81303);
+				_app->soundPlay(81016);
+			} else {
+				_app->puzzleSetActive(kPuzzle81305);
+				_app->soundPlay(81035);
+			}
+			_app->soundPlay(81320);
+		} else if (target == 1) {
+			if (_app->varGetByte(81003) == 1) {
+				_app->puzzleSetActive(kPuzzle81304);
+				_app->soundPlay(81018);
+			} else {
+				_app->puzzleSetActive(kPuzzle81306);
+				_app->soundPlay(81035);
+			}
+			_app->soundPlay(81320);
+		}
+		break;
+
+	case kObject81306: {
+		// Four buttons; the last four presses are kept in string var 81001
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target > 3)
+			break;
+
+		_app->objectPresentationShow(kObject81306, target);
+		_app->varSetByte(81021, (byte)target);
+		_app->timerStart(kTimer4, 500);
+		_app->soundPlay(81304);
+
+		Common::String code = _app->varGetString(81001);
+		code = code.empty() ? "" : Common::String(code.c_str() + 1, MIN<uint32>(3, code.size() - 1));
+		code += Common::String::format("%d", target);
+		_app->varSetString(81001, code);
+
+		if (code != "1032")
+			break;
+
+		advanceProgress();
+		_app->playMovie("A08S03N03P04S01");
+		_app->objectPresentationShow(kObject81306, 4);
+		_app->objectPresentationShow(kObject81306, 5);
+		_app->objectPresentationShow(kObject81306, 6);
+		_app->objectSetAccessibilityOff(kObject81306, 0, 3);
+		_app->objectSetAccessibilityOn(kObject81307, 0, 0);
+		_app->varSetByte(81023, 1);
+		}
+		break;
+
+	case kObject81307:
+		if (_app->bagHasClickedObject()) {
+			if (target == 0 && _app->bagGetClickedObject() == kObjectKey4) {
+				// Sets the progress animation frame (0x4dc040), it doesn't save
+				if (_app->getSaveManager()->getData()->progressState == kProgressState3)
+					_app->getSaveManager()->getData()->progress = 0x18;
+
+				_app->playMovie("a08s03_e03m03a");
+				_app->objectSetAccessibilityOff(kObject81307, 0, 0);
+				_app->soundStopAll(1024);
+				_app->playMovie("a08s01_e03m03");
+				_app->varSetByte(81003, 2);
+				_app->timerStart(kTimer7, 1000);
+				_app->timerStart(kTimer8, 500);
+				_app->objectPresentationHide(kObject81307);
+				_app->objectPresentationHide(kObject81306);
+				_app->objectPresentationShow(kObject81306, 4);
+				_app->objectPresentationShow(kObject81306, 5);
+				_app->objectPresentationShow(kObject81306, 6);
+				_app->objectSetAccessibilityOn(kObject81307, 1, 1);
+				_app->objectSetAccessibilityOn(kObject81217, 5, 5);
+				_app->varSetByte(81009, 0);
+				_app->objectSetAccessibilityOn(kObject81211, 4, 5);
+				_app->objectPresentationShow(kObject81204, 0);
+				_app->objectPresentationShow(kObject81204, 2);
+				_app->objectSetAccessibilityOn(kObject81204, 1, 5);
+				_app->objectSetAccessibilityOn(kObject81301, 0, 0);
+				_app->objectPresentationHide(kObject81301);
+				_app->objectPresentationShow(kObject81301, 1);
+				_app->rotationSetMovabilityOff(83011, 0, 0);
+				_app->objectPresentationHide(kObject81904, 2);
+				_app->objectSetAccessibilityOn(kObject81211, 0, 0);
+				_app->soundPlay(81107, kSoundLoop);
+				setRotation(81011, 275.0f, 0.0f);
+				_app->objectPresentationHide(kObject81101);
+				_app->_vm->update();
+				_app->objectPresentationShow(kObject25, 4);
+			}
+
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 1) {
+			_app->objectPresentationShow(kObject81307, 1);
+			_app->objectSetAccessibilityOff(kObject81307, 1, 1);
+			_app->soundPlay(81309);
+		} else if (target == 2) {
+			setRotation(83021, 346.0f, 0.0f);
+			_app->objectPresentationShow(kObject81307, 2);
+			_app->soundPlay(81309);
+		}
+		break;
+
+	case kObject81311:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->soundPlay(81301, kSoundLoop);
+		_app->soundSetVolume(81301, 100);
+		_app->timerStart(kTimer5, 80);
+		break;
+
+	case kObject81313:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0)
+			_app->soundPlay(_app->varGetByte(81003) == 1 ? 81012 : 81032);
+		else if (target == 1)
+			_app->soundPlay(_app->varGetByte(81003) == 1 ? 81013 : 81033);
+		else if (target == 2 || target == 3)
+			_app->playMovie(_app->varGetByte(81003) == 1 ? "A08S03_E03M02" : "A08S03_E03M04");
+		break;
+
+	case kObject81314:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0) {
+			_app->objectSetAccessibilityOff(kObject81314);
+			_app->objectPresentationShow(kObject81314, 0);
+			_app->varSetByte(81024, 1);
+			_app->soundPlay(81311);
+		} else if (target == 1 || target == 2) {
+			_app->objectSetAccessibilityOff(kObject81314);
+			_app->objectPresentationHide(kObject81314);
+			_app->objectPresentationShow(kObject81314, 1);
+			_app->soundPlay(81312);
+		}
+		break;
+
+	case kObject81315:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0 || target == 1) {
+			_app->objectSetAccessibilityOff(kObject81315);
+			_app->objectPresentationShow(target == 0 ? kObject81316 : kObject81317, 0);
+			_app->varSetByte(target == 0 ? 81025 : 81026, 1);
+			_app->soundPlay(81314);
+		} else if (target == 2 || target == 3) {
+			ObjectId objectId = (target == 2) ? kObject81316 : kObject81317;
+			_app->objectSetAccessibilityOff(kObject81315);
+			_app->objectPresentationHide(objectId);
+			_app->objectPresentationShow(objectId, 1);
+			_app->soundPlay(81315);
+		}
+		break;
+
+	case kObject81401:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0) {
+			_app->objectPresentationShow(kObject81401, _app->varGetByte(81004) == 0 ? 0 : 2);
+			_app->objectSetAccessibilityOff(kObject81401, 0, 0);
+			_app->soundPlay(81402);
+		} else if (target == 1) {
+			_app->objectPresentationShow(kObject81401, 4);
+			_app->objectSetAccessibilityOff(kObject81401, 1, 1);
+			_app->varSetByte(81004, 1);
+			_app->bagAdd(kObjectYellowBulb);
+			_app->bagAdd(kObjectRedBulb);
+			_app->soundPlay(81404);
+		} else if (target == 2) {
+			setRotation(84011, 85.0f, 0.0f);
+			_app->soundPlay(81403);
+			_app->objectPresentationShow(kObject81401, _app->varGetByte(81004) == 0 ? 1 : 3);
+		}
+		break;
+
+	case kObject81404:
+		// Projector: var 81005 = bulb in the lamp (1 red, 2 yellow), var 81006 = switched on, var 81007 = picture loaded
+		if (_app->bagHasClickedObject()) {
+			if (target == 1 && _app->bagGetClickedObject() == kObjectFrankFirstPrize) {
+				_app->soundPlay(81411);
+
+				byte on = _app->varGetByte(81006);
+				byte loaded = _app->varGetByte(81007);
+				byte bulb = _app->varGetByte(81005);
+
+				if ((on == 0 && loaded == 0) || (on == 1 && loaded == 0 && bulb == 0)) {
+					_app->varSetByte(81007, 1);
+					_app->objectPresentationShow(kObject81404, 0);
+					_app->bagRemove(kObjectFrankFirstPrize);
+				} else if (on == 1 && loaded == 0 && bulb == 1) {
+					_app->varSetByte(81007, 1);
+					_app->objectPresentationShow(kObject81404, 6);
+					_app->objectPresentationShow(kObject81404, 5);
+					_app->soundPlay(81037);
+					advanceProgress();
+					_app->varSetByte(81022, 1);
+					_app->bagRemove(kObjectFrankFirstPrize);
+				} else if (on == 1 && loaded == 0 && bulb == 2) {
+					_app->varSetByte(81007, 1);
+					_app->objectPresentationShow(kObject81404, 3);
+					_app->bagRemove(kObjectFrankFirstPrize);
+				}
+			}
+
+			_app->cursorDelete();
+			break;
+		}
+
+		switch (target) {
+		default:
+			break;
+
+		case 1:
+			if (_app->varGetByte(81007) != 1)
+				break;
+
+			_app->objectPresentationHide(kObject81404, 0);
+			for (uint32 i = 2; i <= 6; i++)
+				_app->objectPresentationHide(kObject81404, i);
+			_app->bagAdd(kObjectFrankFirstPrize);
+			_app->varSetByte(81007, 0);
+			_app->soundStop(81037, 1024);
+			_app->soundPlay(81412);
+
+			if (_app->varGetByte(81006) == 1 && _app->varGetByte(81005) == 1)
+				_app->objectPresentationShow(kObject81404, 4);
+
+			if (_app->varGetByte(81006) == 1 && _app->varGetByte(81005) == 2)
+				_app->objectPresentationShow(kObject81404, 2);
+			break;
+
+		case 2:
+			_app->soundPlay(81409);
+
+			if (_app->varGetByte(81006) == 0) {
+				_app->objectPresentationShow(kObject81404, 1);
+
+				if (_app->varGetByte(81005) == 1) {
+					_app->soundPlay(81410, kSoundLoop);
+					if (_app->varGetByte(81007) == 0) {
+						_app->objectPresentationShow(kObject81404, 4);
+					} else {
+						_app->objectPresentationShow(kObject81404, 6);
+						_app->objectPresentationShow(kObject81404, 5);
+						_app->varSetByte(81022, 1);
+						_app->soundPlay(81037);
+					}
+				}
+
+				if (_app->varGetByte(81005) == 2) {
+					_app->soundPlay(81410, kSoundLoop);
+					_app->objectPresentationShow(kObject81404, _app->varGetByte(81007) == 0 ? 2 : 3);
+				}
+
+				_app->varSetByte(81006, 1);
+			} else {
+				_app->objectPresentationHide(kObject81404);
+				_app->varSetByte(81006, 0);
+				_app->objectPresentationHide(kObject81404, 6);
+				_app->soundStop(81037, 1024);
+				_app->soundStop(81410, 1024);
+				if (_app->varGetByte(81007) == 1)
+					_app->objectPresentationShow(kObject81404, 0);
+			}
+			break;
+
+		case 3:
+			_app->timerStart(kTimer2, 100);
+			break;
+		}
+		break;
+
+	case kObject81405:
+		// Lamp: var 81005 = bulb (1 red, 2 yellow)
+		if (_app->bagHasClickedObject()) {
+			if (target == 1
+			 && (_app->bagGetClickedObject() == kObjectRedBulb || _app->bagGetClickedObject() == kObjectYellowBulb)
+			 && _app->varGetByte(81005) == 0) {
+				_app->soundPlay(81405);
+
+				if (_app->bagGetClickedObject() == kObjectRedBulb) {
+					_app->objectPresentationHide(kObject81405);
+					_app->objectPresentationShow(kObject81405, 3);
+					_app->varSetByte(81005, 1);
+					_app->bagRemove(kObjectRedBulb);
+				}
+
+				if (_app->bagGetClickedObject() == kObjectYellowBulb) {
+					_app->objectPresentationHide(kObject81405);
+					_app->objectPresentationShow(kObject81405, 5);
+					_app->varSetByte(81005, 2);
+					_app->bagRemove(kObjectYellowBulb);
+				}
+
+				_app->objectSetAccessibilityOff(kObject81405);
+			}
+
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0) {
+			_app->objectPresentationShow(kObject81405, 2 * _app->varGetByte(81005));
+			_app->objectSetAccessibilityOff(kObject81405, 0, 0);
+			_app->soundPlay(81407);
+		} else if (target == 1) {
+			if (_app->varGetByte(81005) == 1) {
+				_app->objectPresentationShow(kObject81405, 6);
+				_app->varSetByte(81005, 0);
+				_app->bagAdd(kObjectRedBulb);
+				_app->soundPlay(81406);
+			}
+
+			if (_app->varGetByte(81005) == 2) {
+				_app->objectPresentationShow(kObject81405, 6);
+				_app->varSetByte(81005, 0);
+				_app->bagAdd(kObjectYellowBulb);
+				_app->soundPlay(81406);
+			}
+		} else if (target == 2) {
+			_app->objectPresentationShow(kObject81405, 2 * _app->varGetByte(81005) + 1);
+			_app->objectSetAccessibilityOff(kObject81405);
+		}
+		break;
+
+	case kObject81406:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->soundPlay(81036);
+		break;
+
+	case kObjectDiaryOfASeducer:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 1) {
+			advanceProgress();
+			_app->objectSetAccessibilityOff(kObjectDiaryOfASeducer);
+			_app->bagAdd(kObjectDiaryOfASeducer);
+			_app->varSetByte(98012, 3);
+			_app->puzzleSetActive(kPuzzle81404);
+			_app->varSetByte(81012, 1);
+			_app->objectSetAccessibilityOn(kObject81408, 0, 0);
+			_app->rotationSet3DSoundOn(84011, 81401);
+			_app->rotationSet3DSoundOn(84021, 81401);
+			_app->soundPlay(81401, kSoundLoop);
+			_app->soundSetPan(81401, 20);
+			_app->soundPlay(81413);
+			_app->soundPlay(81039);
+			_app->objectSetAccessibilityOn(kObjectDiaryOfASeducer, 0, 0);
+		}
+		break;
+
+	case kObject81408:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->playMovie("A08S04N02P04A01");
+		_app->soundPlay(81040);
+		break;
+
+	case kObject81901:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->objectPresentationShow(kObject81901, 1);
+		_app->soundPlay(81409);
+		_app->soundPlay(81217 + _app->varGetByte(81027));
+		_app->soundPlay(81230 + _app->varGetByte(81027));
+		_app->varSetByte(81027, _app->varGetByte(81027) + 1);
+		if (_app->varGetByte(81027) == 6)
+			_app->varSetByte(81027, 0);
+		break;
+	}
 }
 
 // FAUST.EXE 0x499060
@@ -1435,9 +2416,7 @@ void Zone12Faust::onBag(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, 
 			 && _app->varGetFloat(81002) != 29.0f)
 				break;
 
-			// Advances the progress animation frame (0x4dc040), it doesn't save
-			if (_app->getSaveManager()->getData()->progressState == kProgressState3)
-				_app->getSaveManager()->getData()->progress++;
+			advanceProgress();
 
 			_app->soundPlay(81202);
 			_app->rotationSetMovabilityOn(83021, 4, 4);
@@ -1668,6 +2647,26 @@ void Zone12Faust::onAfterRide(Id movabilityFrom, Id movabilityTo, uint32 movabil
 		}
 		break;
 	}
+}
+
+// Advances the progress animation frame (0x4dc040), it doesn't save
+void Zone12Faust::advanceProgress() {
+	if (_app->getSaveManager()->getData()->progressState == kProgressState3)
+		_app->getSaveManager()->getData()->progress++;
+}
+
+// Remembers the current rotation and view (vars 81002-81004) before opening a close-up
+void Zone12Faust::saveRotation() {
+	_app->varSetDword(81002, (int32)_app->getCurrentRotationId());
+	_app->varSetDword(81003, (int32)_app->rotationGetAlp(_app->getCurrentRotationId()));
+	_app->varSetDword(81004, (int32)_app->rotationGetBet(_app->getCurrentRotationId()));
+}
+
+void Zone12Faust::setRotation(Id rotationId, float alp, float bet) {
+	_app->rotationSetAlp(rotationId, alp);
+	_app->rotationSetBet(rotationId, bet);
+	_app->rotationSetRan(rotationId, 87.0f);
+	_app->rotationSetActive(rotationId);
 }
 
 } // End of namespace Ring
