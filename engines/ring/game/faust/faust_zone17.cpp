@@ -24,6 +24,8 @@
 #include "ring/game/faust/faust_application.h"
 #include "ring/game/faust/faust_shared.h"
 
+#include "ring/base/saveload.h"
+
 #include "ring/debug.h"
 #include "ring/ring.h"
 #include "ring/helpers.h"
@@ -91,7 +93,76 @@ void Zone17Faust::onInit() {
 }
 
 void Zone17Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {
-	error("[Zone17Faust::onButtonUp] Not implemented");
+	switch (id) {
+	default:
+		break;
+
+	case kObject141001:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0) {
+			_app->playMovie("A14S01_E05M08");
+			_app->objectPresentationShow(kObject141001, 0);
+			_app->objectSetAccessibilityOff(kObject141001);
+			_app->objectSetAccessibilityOn(kObject141001, 1, 1);
+		} else {
+			_app->objectPresentationHide(kObject141001);
+			_app->rotationSetMovabilityOn(141102, 0, 0);
+		}
+		break;
+
+	case kObjectMovieReel:
+		if (_app->bagHasClickedObject()) {
+			if (target == 1 && _app->bagGetClickedObject() == kObjectMovieReel) {
+				// Reel on the projector
+				_app->soundPlay(142002);
+				_app->bagRemove(kObjectMovieReel);
+				_app->objectPresentationHide(kObjectMovieReel, 0);
+				_app->objectSetAccessibilityOn(kObject142002);
+				_app->objectSetAccessibilityOff(kObjectMovieReel, 0, 0);
+				_app->rotationSetRolTo(141202, 310.0f, 17.0f, 87.0f);
+				_app->rotationSetRolTo(141202, 310.0f, 17.0f, 55.0f);
+				_app->soundPlay(142005, kSoundLoop);
+				_app->playMovie("INSERTS");
+				_app->soundStop(142005, 1024);
+				_app->rotationSetRan(141202, 87.0f);
+				_app->objectSetAccessibilityOff(kObject142002);
+				_app->objectSetAccessibilityOff(kObjectMovieReel);
+			}
+
+			_app->setField74(false);
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0) {
+			_app->soundPlay(142003);
+			_app->objectPresentationShow(kObjectMovieReel, 1);
+			_app->bagAdd(kObjectMovieReel);
+			_app->objectSetAccessibilityOff(kObjectMovieReel, 0, 0);
+		} else {
+			_app->setField74(false);
+		}
+		break;
+
+	case kObject142003:
+		if (_app->bagHasClickedObject())
+			_app->cursorDelete();
+
+		_app->rotationSetMovabilityOff(141201);
+		_app->rotationSetAlp(141201, 180.0f);
+		_app->rotationSetActive(141201);
+
+		// Sets the progress animation frame (0x4dc040), it doesn't save
+		if (_app->getSaveManager()->getData()->progressState == kProgressState5)
+			_app->getSaveManager()->getData()->progress = 0x2a;
+
+		_app->soundPlay(143001);
+		break;
+	}
 }
 
 void Zone17Faust::onSound(Id id, SoundType type, uint32 a3, bool process) {
@@ -107,12 +178,12 @@ void Zone17Faust::onSound(Id id, SoundType type, uint32 a3, bool process) {
 		break;
 
 	case 143002:
-		_app->playMovie("2183");
+		_app->playMovie("a00s00_e05m10");
 		_app->soundPlay(143003);
 		break;
 
 	case 143003:
-		_app->playMovie("2184");
+		_app->playMovie("a14s02_e05m09");
 		_app->fadeOut(15, Color(0, 0, 0), 0);
 		_app->exitToMenu(kMenuAction0);
 		break;
