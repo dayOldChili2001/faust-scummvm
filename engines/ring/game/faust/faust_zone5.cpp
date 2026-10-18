@@ -572,8 +572,98 @@ void Zone5Faust::onInit() {
 	_app->varDefineByte(17102, 0);
 }
 
+// FAUST.EXE 0x4abb80: episode 5 setup (A12 = zone 15, A13 = zone 16)
 void Zone5Faust::onSetup(SetupType type) {
-	error("[Zone5Faust::onSetup] Not implemented");
+	switch (type) {
+	default:
+		break;
+
+	case kSetupType1:
+		_app->timerStopAll();
+		_app->bagRemoveAll();
+		_app->setSpace(kZone15);
+		_app->playMovie("A12S01_E04M01");
+		_app->fadeOut(15, Color(0, 0, 0), 0);
+		_app->playMovie("A12S01_E04M13");
+		_app->rotationSetAlp(120101, 90.0f);
+		_app->rotationSetBet(120101, 0.0f);
+		_app->rotationSetRan(120101, 87.0f);
+		_app->rotationSetActive(120101);
+		_app->bagAdd(13899);
+		_app->bagAdd(120036);
+		_app->bagAdd(97001);
+		_app->timerStart(kTimer4, 1000);
+		_app->timerStart(kTimer5, 5000);
+		_app->objectPresentationShow(kObject25, 5);
+		break;
+
+	case kSetupType2:
+		// FAUST.EXE 0x4abba4 goes through setupZone (0x4736a0), which also checks the CD
+		_app->setupZone(kZone5, kSetupType3);
+		break;
+
+	case kSetupType3:
+		_app->timerStopAll();
+		_app->bagAdd(13899);
+		_app->bagAdd(13129);
+		_app->bagAdd(97001);
+
+		// FAUST.EXE 0x4abcb4 sets the progress animation frame (0x4dc040), it doesn't save
+		if (_app->getSaveManager()->getData()->progressState == kProgressState4)
+			_app->getSaveManager()->getData()->progress = 35;
+
+		_app->setSpace(kZone16);
+		_app->displayFade("a13_black.bmp", "A13S01N01R01_2.bmp", 12, 0, kLoadFromCd, kArchiveArt);
+		_app->rotationSetAlp(311111, 90.0f);
+		_app->rotationSetBet(311111, 26.0f);
+		_app->rotationSetRan(311111, 87.0f);
+		_app->rotationSetActive(311111);
+		_app->soundPlay(310105, kSoundLoop);
+		break;
+
+	case kSetupType99:
+		_app->timerStopAll();
+		_app->bagRemoveAll();
+		_app->setSpace(kZone15);
+		_app->puzzleSetActive(kPuzzle120009);
+		break;
+
+	case kSetupType30000:
+		switch (_app->getChapterIndex()) {
+		default:
+			break;
+
+		case 13:
+			_app->setCurrentZone(kZone15);
+			_app->playMovie("A12S01_E04M01");
+			break;
+
+		case 14:
+			_app->setCurrentZone(kZone15);
+			_app->playMovie("A12S01_E04M02");
+			break;
+
+		case 15:
+			_app->setCurrentZone(kZone15);
+			_app->playMovie("A12S07_E04M05");
+			break;
+
+		case 16:
+			_app->setCurrentZone(kZone15);
+			_app->playMovie("A12S01_E04M10");
+			break;
+
+		case 17:
+			_app->setCurrentZone(kZone16);
+			_app->playMovie("A13S02_E04M12");
+			break;
+		}
+
+		_app->setCurrentZone(kZoneSY);
+		_app->soundPlay(90001, kSoundLoop);
+		_app->puzzleSetActive(kPuzzleGeneralMenu);
+		break;
+	}
 }
 
 void Zone5Faust::onTimer(TimerId id) {
