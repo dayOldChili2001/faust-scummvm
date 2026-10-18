@@ -48,6 +48,8 @@ public:
 
 private:
 	ApplicationFaust *_app;
+
+	void advanceProgress();
 };
 
 } // End of namespace Ring
