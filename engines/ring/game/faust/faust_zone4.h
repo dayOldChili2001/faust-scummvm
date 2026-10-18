@@ -48,7 +48,29 @@ public:
 	void onBeforeRide(Id movabilityFrom, Id movabilityTo, uint32 movabilityIndex, Id target, MovabilityType movabilityType) override;
 	void onAfterRide(Id movabilityFrom, Id movabilityTo, uint32 movabilityIndex, Id target, MovabilityType movabilityType) override;
 
+	void setupPoker(uint32 type);
+
 private:
+	// Episode 6 poker game
+	void pokerNewHand();
+	void pokerEvaluateOpponent(int32 discard);
+	void pokerEvaluatePlayer();
+	byte pokerDealCard(uint32 slot);
+	void pokerDeal();
+	void pokerShuffle();
+	void pokerClearTable();
+	void pokerSortHand(uint32 offset);
+	void pokerDiscard(uint32 slot);
+
+	void saveView();
+	void restoreView();
+	void showBoxes(ObjectId objectId, bool hideAll, uint32 none, uint32 medallion, uint32 ring, uint32 both);
+	void setFireplace(bool on, bool button = false);
+	void buttonUpStill(ObjectId objectId, Id target);
+	void stopStill(ObjectId objectId);
+	void buttonUpBarrel(ObjectId objectId, Id target, const char *bucketMovie);
+	void fillFromBarrel(bool atTap);
+
 	ApplicationFaust *_app;
 };
 

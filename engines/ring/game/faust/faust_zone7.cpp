@@ -144,15 +144,15 @@ void Zone7Faust::onSetup(SetupType type) {
 	case kSetupType3:
 		_app->setSpace(kZone4);
 		_app->playMovie("a05s02_e06m12");
-		// TODO (zone 4, chunk 5f): FAUST.EXE 0x4a7790(1) plays A01S03_E06M11 and resets the zone-4 puzzle
-		error("[Zone7Faust::onSetup] Zone 4 helper 0x4a7790 not implemented (type %d)", type);
+		_app->sub_4A7790(1);
+		break;
 
 	case kSetupType99:
 		_app->setSpace(kZone4);
 		_app->bagAdd(13899);
 		_app->puzzleSetActive(kPuzzle13901);
-		// TODO (zone 4, chunk 5f): FAUST.EXE 0x4a7790(2)
-		error("[Zone7Faust::onSetup] Zone 4 helper 0x4a7790 not implemented (type %d)", type);
+		_app->sub_4A7790(2);
+		break;
 
 	case 20000:
 		// The first chapter in the extras: the intro movies
@@ -190,8 +190,8 @@ void Zone7Faust::onSetup(SetupType type) {
 		break;
 
 	case 30002:
-		// TODO (zone 4, chunk 5f): FAUST.EXE 0x4a7790(2)
-		error("[Zone7Faust::onSetup] Zone 4 helper 0x4a7790 not implemented (type %d)", type);
+		_app->sub_4A7790(2);
+		break;
 	}
 }
 

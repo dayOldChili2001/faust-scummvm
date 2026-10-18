@@ -2507,8 +2507,9 @@ void ApplicationFaust::sub_4A08E0() {
 	_zone7->pactLoop();
 }
 
-void ApplicationFaust::sub_4A2CF0() {
-	error("[ApplicationFaust::sub_4A2CF0] Not implemented");
+// FAUST.EXE 0x4a7790 (zone 4): episode 6 poker setup
+void ApplicationFaust::sub_4A7790(uint32 type) {
+	_zone4->setupPoker(type);
 }
 
 #pragma endregion

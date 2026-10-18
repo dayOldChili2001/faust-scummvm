@@ -150,6 +150,7 @@ public:
 	virtual void messageHideQuestion(uint32 accelerationIndex);
 
 	bool messageGet(Common::String messageId);
+	const Common::String &getMessage() const { return _message; }
 	void messageFormat(Common::String messageId, int argument);
 	void messageFormat(Common::String messageId, Common::String argument);
 	void messageFormat(Common::String messageId, int arg1, int arg2);

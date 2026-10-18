@@ -138,7 +138,7 @@ protected:
 	void sub_494D30(uint32 type);
 	void loadSaveList(Id visualId, PuzzleId puzzleId);
 	void sub_4A08E0();
-	void sub_4A2CF0();
+	void sub_4A7790(uint32 type);
 
 	int8 getChapterIndex() const;
 
