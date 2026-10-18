@@ -783,7 +783,73 @@ void Zone5Faust::onButtonDown(ObjectId id, Id target, Id puzzleRotationId, uint3
 }
 
 void Zone5Faust::onAnimationNextFrame(Id animationId, const Common::String &name, uint32 frame, uint32 frameCount) {
-	error("[EventAnimationFaust::onAnimationNextFrameZone5] Not implemented");
+	switch (animationId) {
+	default:
+		break;
+
+	case 17005:
+		if (frame != frameCount)
+			break;
+
+		_app->objectSetAccessibilityOn(kObjectHandle, 2, 2);
+
+		if (_app->varGetByte(17030) == 1) {
+			_app->objectSetAccessibilityOff(kObjectHandle, 2, 2);
+			_app->varSetByte(17030, 0);
+			_app->timerStart(kTimer3, 4000);
+			_app->varSetByte(17041, 0);
+		}
+		break;
+
+	case 17006:
+		if (frame == frameCount) {
+			int8 index = _app->varGetByte(17030 + _app->varGetByte(17030));
+
+			_app->objectPresentationPauseAnimation(kObjectHandle, index + 1);
+			_app->timerStart(kTimer4, 2000);
+			_app->objectSetAccessibilityOn(kObjectWhip, index, index);
+		}
+		break;
+
+	case 17008:
+		if (frame == frameCount)
+			_app->soundPlay(17050);
+		break;
+
+	case 17010:
+		if (frame == frameCount) {
+			_app->objectPresentationHide(kObject17004, 0);
+			_app->objectPresentationShow(kObject17004, 1);
+		}
+		break;
+
+	case 17011:
+	case 17012:
+		if (frame != frameCount)
+			break;
+
+		_app->objectPresentationHide(kObject17005, animationId == 17011 ? 0 : 1);
+		_app->objectPresentationShow(kObject17005, animationId == 17011 ? 2 : 3);
+		_app->puzzleSetActive(kPuzzle17051);
+		break;
+
+	case 17013:
+		if (frame == 1) {
+			_app->soundPlay(17027);
+			_app->objectPresentationSetAnimationOnRotation(kObject17004, 2, 0, 17014);
+			_app->objectPresentationHide(kObject17005);
+			_app->objectPresentationShow(kObject17004, 2);
+			_app->objectSetAccessibilityOn(kObject17004);
+		}
+		break;
+
+	case 17014:
+		if (frame == 1) {
+			_app->soundStop(17027, 1024);
+			_app->soundPlay(17026);
+		}
+		break;
+	}
 }
 
 void Zone5Faust::onSound(Id id, SoundType type, uint32 a3, bool process) {

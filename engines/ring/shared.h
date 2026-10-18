@@ -243,6 +243,8 @@ enum SetupType {
 	kSetupType6         = 6,
 	kSetupType9         = 9,
 	kSetupType10        = 10,
+	kSetupType11        = 11,
+	kSetupType12        = 12,
 	kSetupType99        = 99,
 	kSetupType200       = 200,
 	kSetupType300       = 300,

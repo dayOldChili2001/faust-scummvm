@@ -379,7 +379,7 @@ void Zone2Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 
 			break;
 		}
 
-		_app->setupZone(kZone6, (SetupType)11);
+		_app->setupZone(kZone6, kSetupType11);
 		break;
 	}
 }

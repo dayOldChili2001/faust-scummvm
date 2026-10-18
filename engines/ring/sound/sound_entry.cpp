@@ -37,6 +37,9 @@ namespace Ring {
 SoundEntry::SoundEntry(Id soundId, SoundType type, Common::String name, LoadFrom loadFrom, SoundFormat format) : BaseObject(soundId) {
 	_type       = type;
 	_name       = name;
+	// FAUST.EXE 0x479640 builds the path from the current zone when the sound is added,
+	// so sounds from an earlier zone still play (and load) after a zone change
+	_path       = getApp()->getSoundPath(name, type);
 	_isPlaying  = false;
 	_loadFrom   = loadFrom;
 	_volume     = 100;
@@ -129,7 +132,7 @@ SoundEntryStream::~SoundEntryStream() {
 
 void SoundEntryStream::play(bool loop) {
 	// Compute sound path
-	Common::String path = getApp()->getSoundPath(_name, _type);
+	Common::String path = _path;
 
 	debugC(kRingDebugSound, "Playing sound: %s", path.c_str());
 
@@ -222,7 +225,7 @@ void SoundEntryData::preload() {
 	_isPreloaded = true;
 
 	// Compute sound path
-	Common::String path = getApp()->getSoundPath(_name, _type);
+	Common::String path = _path;
 	initSoundBuffer(path);
 }
 

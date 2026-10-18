@@ -65,6 +65,7 @@ public:
 protected:
 	SoundType      _type;
 	Common::String _name;
+	Common::String _path;
 	bool           _isPlaying;
 	LoadFrom       _loadFrom;
 	int32          _volume;

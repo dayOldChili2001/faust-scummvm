@@ -21,6 +21,8 @@
 
 #include "ring/game/faust/faust_zone6.h"
 
+#include "ring/base/saveload.h"
+
 #include "ring/game/faust/faust_application.h"
 #include "ring/game/faust/faust_shared.h"
 
@@ -128,7 +130,132 @@ void Zone6Faust::onInit() {
 }
 
 void Zone6Faust::onSetup(SetupType type) {
-	error("[Zone6Faust::onSetup] Not implemented");
+	switch (type) {
+	default:
+		break;
+
+	case kSetupType1:
+		_app->timerStopAll();
+		_app->bagRemoveAll();
+		_app->setSpace(kZone5);
+		_app->playMovie("A01S01_E05M01");
+		_app->fadeOut(15, Color(0, 0, 0), 0);
+		_app->setSpace(kZone2);
+		_app->bagAdd(13899);
+		_app->bagAdd(13129);
+		_app->bagAdd(97001);
+		_app->rotationSetAlp(11005, 270.0f);
+		_app->rotationSetBet(11005, 0.0f);
+		_app->rotationSetRan(11005, 87.0f);
+		_app->displayFade("a01_black.bmp", "a01s01n05p01.bmp", 15, 0, kLoadFromCd, kArchiveArt);
+		_app->rotationSetActive(11005);
+		_app->timerStart(kTimer0, 1000);
+		_app->objectSetAccessibilityOff(kObject11001);
+		_app->objectSetAccessibilityOff(kObject11002);
+		_app->objectSetAccessibilityOff(kObject11003);
+		_app->objectSetAccessibilityOn(kObject11007);
+		_app->objectSetAccessibilityOff(kObject11004);
+		_app->objectSetAccessibilityOff(kObject11005);
+		_app->objectPresentationShow(kObject25, 6);
+		break;
+
+	case kSetupType2:
+		_app->setSpace(kZone9);
+		_app->soundStopAll(1024);
+		_app->soundPlay(61306, kSoundLoop);
+		_app->rotationSetAlp(61200, 0.0f);
+		_app->rotationSetBet(61200, 0.0f);
+		_app->rotationSetRan(61200, 87.0f);
+		_app->rotationSetActive(61200);
+		break;
+
+	case kSetupType3:
+		_app->setSpace(kZone17);
+
+		// FAUST.EXE 0x46b157 sets the progress animation frame (0x4dc040), it doesn't save
+		if (_app->getSaveManager()->getData()->progressState == kProgressState5)
+			_app->getSaveManager()->getData()->progress = 41;
+
+		_app->rotationSetAlp(141101, 270.0f);
+		_app->rotationSetBet(141101, 0.0f);
+		_app->rotationSetRan(141101, 87.0f);
+		_app->rotationSetActive(141101);
+		break;
+
+	case kSetupType11:
+		_app->setSpace(kZone5);
+		_app->timerStopAll();
+		_app->timerStart(kTimer7, 1000);
+		_app->rotationSetAlp(17001, 270.0f);
+		_app->rotationSetBet(17001, 0.0f);
+		_app->rotationSetRan(17001, 87.0f);
+		_app->rotationSetActive(17001);
+		_app->soundPlay(17062);
+		_app->soundPlay(17019, kSoundLoop);
+		break;
+
+	case kSetupType12:
+		_app->timerStopAll();
+		_app->soundPlay(17062);
+		_app->soundStop(17019, 1024);
+		_app->setSpace(kZone2);
+		_app->rotationSetAlp(11006, 90.0f);
+		_app->rotationSetBet(11006, 0.0f);
+		_app->rotationSetRan(11006, 87.0f);
+		_app->rotationSetActive(11006);
+		_app->timerStart(kTimer0, 1000);
+		_app->objectSetAccessibilityOff(kObject11002);
+		_app->objectSetAccessibilityOff(kObject11003);
+		_app->objectSetAccessibilityOn(kObject11007);
+		_app->objectSetAccessibilityOff(kObject11004);
+		_app->objectSetAccessibilityOff(kObject11005);
+		break;
+
+	case kSetupType99:
+		_app->timerStopAll();
+		_app->bagRemoveAll();
+		_app->bagAdd(13899);
+		_app->bagAdd(13129);
+		_app->bagAdd(97001);
+		_app->setSpace(kZone9);
+		_app->bagAdd(kObjectKey);
+		_app->bagAdd(kObjectWhip);
+		_app->rotationSetMovabilityOn(61001, 1, 1);
+		_app->rotationSetMovabilityOn(61207, 2, 2);
+		_app->objectPresentationShow(kObject61304, 2);
+		_app->rotationSetAlp(61001, 300.0f);
+		_app->rotationSetRan(61001, 85.7f);
+		_app->rotationSetActive(61001);
+		_app->varSetByte(17042, 1);
+		_app->varSetByte(17027, 1);
+		break;
+
+	case kSetupType30000:
+		switch (_app->getChapterIndex()) {
+		default:
+			break;
+
+		case 18:
+			_app->setCurrentZone(kZone5);
+			_app->playMovie("A01S01_E05M01");
+			break;
+
+		case 19:
+			_app->setCurrentZone(kZone5);
+			_app->playMovie("A01S07_E05M04");
+			break;
+
+		case 20:
+			_app->setCurrentZone(kZone9);
+			_app->playMovie("A06S03_E05M06");
+			break;
+		}
+
+		_app->setCurrentZone(kZoneSY);
+		_app->soundPlay(90001, kSoundLoop);
+		_app->puzzleSetActive(kPuzzleGeneralMenu);
+		break;
+	}
 }
 
 void Zone6Faust::onTimer(TimerId id) {
