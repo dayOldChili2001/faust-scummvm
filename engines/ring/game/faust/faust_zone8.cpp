@@ -871,8 +871,66 @@ void Zone8Faust::onInit() {
 	_app->objectPresentationSetImageCoordinatesOnPuzzle(54210, (uint8)_app->varGetByte(54217), Common::Point(_app->varGetWord(53006), _app->varGetWord(53016)));
 }
 
+// FAUST.EXE 0x4ab600. setupZone() dispatches on the episode, so this is episode 8
+// ("Seven"), which starts in this class's A05 rotations.
 void Zone8Faust::onSetup(SetupType type) {
-	error("[EventSetupFaust::onSetupZone8] Not implemented");
+	switch ((uint32)type) {
+	default:
+		break;
+
+	case kSetupType1:
+		_app->timerStopAll();
+		_app->bagRemoveAll();
+		_app->setSpace(kZone8);
+		_app->bagAdd(13899);
+		_app->bagAdd(53125);
+		_app->bagAdd(97001);
+		_app->playMovie("A05S01_E07M01");
+		_app->fadeOut(15, Color(0, 0, 0), 0);
+		_app->rotationSetAlp(51011, 0.0f);
+		_app->rotationSetBet(51011, 0.0f);
+		_app->rotationSetRan(51011, 87.0f);
+		_app->rotationSetActive(51011);
+		_app->rotationSet3DSoundOff(53011, 53102);
+		_app->rotationSet3DSoundOff(53021, 53102);
+		_app->timerStart(kTimer0, 1);
+		_app->bagAdd(97001);
+		_app->objectPresentationShow(kObject25, 8);
+		break;
+
+	case kSetupType3:
+		_app->setSpace(kZone8);
+		_app->playMovie("Surogat");
+		_app->sub_4A0300(2);
+		break;
+
+	case kSetupType99:
+		_app->sub_494D30(2);
+		break;
+
+	case kSetupType30000:
+	case 30001: {
+		// Chapters 27-31 (30001 plays the last one)
+		static const char *movies[] = {
+			"A05S03_E07M03",
+			"A05S03_E07M04",
+			"A05S01_E07M05",
+			"A05S03_E07M07",
+			"A15S01_E07M09"
+		};
+
+		int32 index = (type == 30001) ? 4 : _app->getChapterIndex() - 27;
+		if (index >= 0 && index < (int32)ARRAYSIZE(movies)) {
+			_app->setCurrentZone(kZone8);
+			_app->playMovie(movies[index]);
+		}
+
+		_app->setCurrentZone(kZoneSY);
+		_app->soundPlay(90001, kSoundLoop);
+		_app->puzzleSetActive(kPuzzleGeneralMenu);
+		}
+		break;
+	}
 }
 
 void Zone8Faust::onTimer(TimerId id) {
@@ -958,8 +1016,237 @@ void Zone8Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 
 	error("[Zone8Faust::onButtonUp] Not implemented");
 }
 
+// Back to rotation 53021 after closing one of the 5321x/5322x close-ups
+static void setRotation53021(ApplicationFaust *app) {
+	app->rotationSetAlp(53021, 158.0f);
+	app->rotationSetBet(53021, 26.0f);
+	app->rotationSetRan(53021, 87.0f);
+	app->rotationSetActive(53021);
+}
+
+// FAUST.EXE 0x49f6b0
 void Zone8Faust::onAnimationNextFrame(Id animationId, const Common::String &name, uint32 frame, uint32 frameCount) {
-	error("[EventAnimationFaust::onAnimationNextFrameZone8] Not implemented");
+	switch (animationId) {
+	default:
+		break;
+
+	case 53171:
+		if (frame == 10) {
+			_app->objectPresentationHide(kObject53171);
+			_app->puzzleSetActive(kPuzzle53106);
+		}
+		break;
+
+	case 53172:
+		if (frame == 1) {
+			_app->objectPresentationHide(kObject53171);
+			_app->objectSetAccessibilityOn(kObject53171);
+			_app->soundPlay(53164);
+		}
+		break;
+
+	case 53211:
+		if (frame == 10) {
+			_app->objectPresentationShow(kObject532111);
+			_app->objectPresentationHide(kObject53211);
+		}
+		break;
+
+	case 53212:
+		if (frame == 1) {
+			_app->objectPresentationHide(kObject532111);
+			_app->objectPresentationHide(kObject53211);
+		}
+		break;
+
+	case 53213:
+		if (frame == 1) {
+			_app->objectPresentationHide(kObject532111);
+			_app->objectPresentationHide(kObject53211);
+			_app->soundPlay(53213);
+			setRotation53021(_app);
+		}
+		break;
+
+	case 53214:
+	case 53215:
+		if (frame == 1) {
+			_app->objectPresentationHide(kObject532111);
+			_app->objectPresentationHide(kObject53211);
+
+			if (animationId == 53214) {
+				_app->objectPresentationShow(kObject53212, 0);
+				_app->objectSetAccessibilityOn(kObject532122);
+			} else {
+				_app->objectPresentationShow(kObject53212, 2);
+			}
+			_app->objectSetAccessibilityOn(kObject532123);
+		}
+		break;
+
+	case 53221:
+	case 53223:
+		if (frame == 10) {
+			_app->varSetByte(53213, 1);
+			_app->objectPresentationShow(kObject532121, animationId == 53221 ? 0 : 1);
+			_app->objectPresentationHide(kObject53212);
+			if (animationId == 53221)
+				_app->objectSetAccessibilityOn(kObject532122);
+			_app->objectSetAccessibilityOn(kObject532123);
+		}
+		break;
+
+	case 53222:
+	case 53224:
+		if (frame == 1) {
+			_app->varSetByte(53213, 0);
+			_app->objectPresentationHide(kObject532121);
+			_app->objectPresentationHide(kObject53212);
+			_app->objectSetAccessibilityOn(kObject53212);
+			_app->objectSetAccessibilityOn(kObject53211);
+			_app->soundPlay(53213);
+
+			if (_app->varGetByte(53211) == 1) {
+				_app->varSetByte(53211, 0);
+				_app->soundPlay(53213);
+				setRotation53021(_app);
+			}
+		}
+		break;
+
+	case 53225:
+	case 53227:
+		if (frame == 10) {
+			_app->varSetByte(53214, 1);
+			_app->objectPresentationShow(kObject532125, animationId == 53225 ? 0 : 1);
+			_app->objectPresentationHide(kObject532124);
+			_app->objectSetAccessibilityOn(kObject532126);
+			_app->objectSetAccessibilityOn(kObject532127);
+		}
+		break;
+
+	case 53226:
+	case 53228:
+		if (frame == 1) {
+			_app->varSetByte(53214, 0);
+			_app->objectPresentationHide(kObject532125);
+			_app->objectPresentationHide(kObject532124);
+			_app->objectSetAccessibilityOn(kObject532124);
+			_app->soundPlay(53217);
+
+			if (_app->varGetByte(53211) == 1) {
+				_app->varSetByte(53211, 0);
+
+				if (_app->varGetByte(53212) == 1) {
+					_app->soundPlay(532110);
+					_app->varSetByte(53212, 0);
+					_app->varSetByte(53211, 0);
+					_app->objectPresentationShow(kObject53211, 2);
+				} else {
+					_app->soundPlay(53213);
+					setRotation53021(_app);
+				}
+			}
+		}
+		break;
+
+	case 53121:
+		if (frame == 22) {
+			_app->timerStop(kTimer3);
+			_app->timerStop(kTimer4);
+
+			if ((int8)_app->varGetByte(53123) > 50) {
+				_app->timerStop(kTimer5);
+				_app->timerStart(kTimer5, 100);
+			} else {
+				_app->varSetByte(53123, 50);
+				_app->timerStop(kTimer5);
+			}
+
+			_app->objectPresentationShow(kObject53124, 0);
+			_app->objectPresentationShow(kObject53122, 0);
+			_app->objectPresentationHide(kObject53121, 0);
+			_app->objectPresentationHide(kObject53121, 1);
+			_app->varSetByte(53125, 1);
+			_app->varSetByte(53120, 0);
+			_app->puzzleSetMovabilityOn(kPuzzle53102, 0, 0);
+			if (!_app->varGetByte(53121))
+				_app->puzzleSetMovabilityOn(kPuzzle53102, 1, 1);
+		}
+		break;
+
+	case 54101:
+		if (frame == 10) {
+			_app->objectPresentationHide(kObject54101);
+			_app->puzzleSetActive(kPuzzle54110);
+		}
+		break;
+
+	case 54102:
+		if (frame == 1) {
+			_app->objectPresentationHide(kObject54101);
+			_app->objectSetAccessibilityOn(kObject54101);
+		}
+		break;
+
+	case 54111:
+		if (frame == 10) {
+			_app->objectPresentationHide(kObject54111);
+			_app->puzzleSetActive(kPuzzle54120);
+			_app->soundPlay(54121);
+
+			if (!_app->varGetByte(54101)) {
+				_app->varSetByte(52999, _app->varGetByte(52999) + 1);
+				_app->varSetByte(54101, 1);
+			}
+		}
+		break;
+
+	case 54112:
+		if (frame == 1) {
+			_app->objectPresentationHide(kObject54111);
+			_app->objectSetAccessibilityOn(kObject54111);
+		}
+		break;
+
+	case 54211:
+	case 54213:
+		if (frame == 10) {
+			_app->objectPresentationHide(kObject54201);
+			_app->objectPresentationShow(kObject54202, animationId == 54211 ? 0 : 1);
+			_app->objectSetAccessibilityOn(kObject54202);
+			if (animationId == 54211)
+				_app->objectSetAccessibilityOn(kObject54203);
+		}
+		break;
+
+	case 54212:
+	case 54214:
+		if (frame == 1) {
+			_app->objectPresentationHide(kObject54201);
+			_app->objectPresentationHide(kObject54202, animationId == 54212 ? 0 : 1);
+			_app->soundPlay(53164);
+			_app->objectSetAccessibilityOn(kObject54201);
+		}
+		break;
+
+	case 55211:
+		if (frame == 10) {
+			_app->soundStop(51001, 1024);
+			_app->objectPresentationHide(kObject55220);
+			for (uint32 i = 0; i < 7; i++)
+				_app->objectPresentationHide(kObject55219, i);
+			_app->playMovie("a15s01_e07m10");
+			_app->displayFade("A15_E07M10.bmp", "a05_black.bmp", 15, 0, kLoadFromCd, kArchiveArt);
+			_app->timerStopAll();
+			_app->bagRemoveAll();
+			_app->playMovie("a15s01_e07m11_1");
+			_app->bagAdd(56003);
+			_app->soundPlay(51001, kSoundLoop);
+			_app->puzzleSetActive(kPuzzle56000);
+		}
+		break;
+	}
 }
 
 void Zone8Faust::onSound(Id id, SoundType type, uint32 a3, bool process) {
