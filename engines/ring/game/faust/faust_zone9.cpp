@@ -24,6 +24,8 @@
 #include "ring/game/faust/faust_application.h"
 #include "ring/game/faust/faust_shared.h"
 
+#include "ring/base/saveload.h"
+
 #include "ring/debug.h"
 #include "ring/ring.h"
 #include "ring/helpers.h"
@@ -185,14 +187,194 @@ void Zone9Faust::onInit() {
 	_app->varDefineByte(61904, 1);
 }
 
+// FAUST.EXE 0x49aab0
 void Zone9Faust::onTimer(TimerId id) {
-	error("[EventTimerFaust::onTimerZone9] Not implemented");
+	switch (id) {
+	default:
+		break;
+
+	case kTimer0: {
+		int32 growl = rnd(10);
+		if (growl < 3)
+			_app->soundPlay(61303 + growl);
+		break;
+	}
+
+	case kTimer1:
+		// One crack of the whip moves a random tiger one step (never onto the middle position),
+		// two cracks within the timer move both tigers along their current directions
+		_app->timerStop(kTimer1);
+		_app->objectSetAccessibilityOff(kObjectWhip);
+
+		if (_app->varGetByte(61900) == 1) {
+			int32 tiger = rnd(2);
+			int32 position = _app->varGetByte(61901 + tiger);
+			int32 direction;
+			int32 next;
+
+			do {
+				direction = rnd(2) ? 1 : -1;
+				next = position + direction;
+			} while (next == 2 || next < 0 || next > 4);
+
+			_app->objectPresentationHideAndRemove((ObjectId)(kObject61302 + tiger));
+			_app->varSetByte(61909, tiger);
+
+			uint32 presentation = (direction == -1) ? 2 * position + 4 : 2 * position + 5;
+			_app->objectPresentationShow((ObjectId)(kObject61302 + tiger), presentation);
+			_app->objectPresentationSetAnimationOnPuzzle((ObjectId)(kObject61302 + tiger), presentation, 0, 61300);
+			_app->varSetByte(61901 + tiger, next);
+			_app->varSetByte(61903 + tiger, direction);
+			_app->varSetByte(61900, 0);
+			break;
+		}
+
+		{
+			int32 first = 0;
+			int32 last = 1;
+
+			// Tigers on the same position: only one of them moves
+			if (_app->varGetByte(61901) == _app->varGetByte(61902)) {
+				first = rnd(2);
+				last = first;
+			}
+
+			for (int32 tiger = first; tiger <= last; tiger++) {
+				int32 position = _app->varGetByte(61901 + tiger);
+				int32 direction = (int8)_app->varGetByte(61903 + tiger);
+
+				if (position + direction < 0 || position + direction > 4)
+					direction = -direction;
+
+				_app->objectPresentationHide((ObjectId)(kObject61302 + tiger));
+				_app->varSetByte(61909, tiger);
+
+				uint32 presentation = (direction == -1) ? 2 * position + 4 : 2 * position + 5;
+				_app->objectPresentationShow((ObjectId)(kObject61302 + tiger), presentation);
+				_app->objectPresentationSetAnimationOnPuzzle((ObjectId)(kObject61302 + tiger), presentation, 0, 61300 + tiger);
+				_app->varSetByte(61901 + tiger, position + direction);
+				_app->varSetByte(61903 + tiger, direction);
+			}
+
+			_app->varSetByte(61900, 0);
+		}
+		break;
+
+	case kTimer2:
+		// Both tigers in the middle
+		_app->timerStop(kTimer2);
+		_app->cursorDelete();
+		_app->timerStop(kTimer0);
+		_app->playMovie("a06s01a01");
+
+		// Advances the progress animation frame (0x4dc040), it doesn't save
+		if (_app->getSaveManager()->getData()->progressState == kProgressState5)
+			_app->getSaveManager()->getData()->progress++;
+
+		_app->rotationSetMovabilityOn(61001, 1, 1);
+		_app->rotationSetMovabilityOn(61207, 2, 2);
+		_app->objectPresentationShow(kObject61304, 2);
+		_app->rotationSetAlp(61001, 300.0f);
+		_app->rotationSetRan(61001, 85.6f);
+		_app->rotationSetActive(61001);
+		break;
+	}
 }
 
+// FAUST.EXE 0x49a810
 void Zone9Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {
-	error("[Zone9Faust::onButtonUp] Not implemented");
+	switch (id) {
+	default:
+		break;
+
+	case kObjectNecklace:
+		if (_app->bagHasClickedObject()) {
+			_app->setField74(false);
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0) {
+			_app->playMovie("A06S03_E05M06");
+			_app->bagAdd(kObjectNecklace);
+			_app->objectPresentationShow(kObjectNecklace);
+			_app->objectSetAccessibilityOff(kObjectNecklace);
+			_app->soundStop(61306, 1024);
+			_app->playMovie("A06S01_E05M07");
+			_app->soundPlay(61307, kSoundLoop);
+			_app->timerStart(kTimer0, 1000);
+			_app->puzzleSetActive(kPuzzle61901);
+		}
+		break;
+
+	case kObjectWhip:
+		if (!_app->bagHasClickedObject())
+			break;
+
+		if (_app->bagGetClickedObject() != kObjectWhip) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (_app->varGetByte(61900) >= 2)
+			break;
+
+		_app->soundPlay(61301 + _app->varGetByte(61900));
+		_app->varSetByte(61900, _app->varGetByte(61900) + 1);
+
+		if (_app->varGetByte(61900) == 1)
+			_app->timerStart(kTimer1, 500);
+
+		if (_app->varGetByte(61900) == 2)
+			_app->objectSetAccessibilityOff(kObjectWhip);
+		break;
+
+	case kObject61209:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0)
+			_app->setupRotation(4);
+		break;
+
+	case kObject61304:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->fadeOut(15, Color(0, 0, 0), 0);
+		_app->setupZone(kZone6, kSetupType3);
+		break;
+	}
 }
 
+// FAUST.EXE 0x49aa00 (onAfterRide gets the new rotation first, then the previous one)
+void Zone9Faust::onAfterRide(Id movabilityFrom, Id movabilityTo, uint32 movabilityIndex, Id target, MovabilityType movabilityType) {
+	_app->soundPlay(61308);
+
+	if (movabilityType == kMovabilityRotationToRotation) {
+		if (target == 666)
+			_app->fadeOut(15, Color(0, 0, 0), 0);
+
+		if (movabilityTo == 61001) {
+			_app->soundStop(61307, 1024);
+			_app->soundPlay(61306, kSoundLoop);
+		}
+
+		if (movabilityFrom == 61001) {
+			_app->soundStop(61306, 1024);
+			_app->soundPlay(61307, kSoundLoop);
+		}
+	} else if (movabilityType == kMovabilityPuzzleToPuzzle) {
+		if (movabilityFrom == 61209)
+			_app->soundPlay(61300);
+	}
+}
+
+// FAUST.EXE 0x49af00
 void Zone9Faust::onAnimationNextFrame(Id animationId, const Common::String &name, uint32 frame, uint32 frameCount) {
 	switch (animationId) {
 	default:
