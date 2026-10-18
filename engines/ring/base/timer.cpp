@@ -76,8 +76,9 @@ void TimerHandler::start(TimerId id, uint32 elapseTime) {
 }
 
 void TimerHandler::stop(TimerId id) {
+	// The original (FAUST.EXE 0x48de20) silently ignores unknown timers
 	if (!_timers.has(id))
-		error("[TimerHandler::stop] Timer with that id doesn't exist (%d)", id);
+		return;
 
 	_timers.remove(id);
 }

@@ -6,7 +6,7 @@
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 8
+ * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
 
  * This program is distributed in the hope that it will be useful,
@@ -16,7 +16,7 @@
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 08110-1301, USA.
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
 #include "ring/game/faust/faust_zone8.h"
@@ -2369,9 +2369,10 @@ void Zone8Faust::onBagClickedObject(ObjectId id) {
 	}
 }
 
+// FAUST.EXE 0x49ffd0
 void Zone8Faust::onUpdateBefore(Id movabilityFrom, Id movabilityTo, uint32 movabilityIndex, Id target, const Common::Point &point) {
 	if (movabilityFrom == 53123 && movabilityTo == 1) {
-		if (_app->varGetByte(53123) == 1 && _app->bagGetClickedObject() == kObjectMatches2) {
+		if (_app->varGetByte(53121) == 1 && _app->bagGetClickedObject() == kObjectMatches2) {
 			_app->objectPresentationShow(kObject53123, 2);
 			_app->varSetByte(53121, 2);
 			_app->soundPlay(53126);
