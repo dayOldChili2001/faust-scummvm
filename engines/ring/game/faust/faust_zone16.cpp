@@ -24,6 +24,8 @@
 #include "ring/game/faust/faust_application.h"
 #include "ring/game/faust/faust_shared.h"
 
+#include "ring/base/saveload.h"
+
 #include "ring/debug.h"
 #include "ring/ring.h"
 #include "ring/helpers.h"
@@ -154,32 +156,32 @@ void Zone16Faust::onInit() {
 	_app->setArchiveType(kArchiveFile);
 
 	_app->objectAddPresentation(kObject310002);
-	_app->objectPresentationAddImageToPuzzle(kObject310002, 0, kPuzzle310001, "n01.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1011);
+	_app->objectPresentationAddImageToPuzzle(kObject310002, 0, kPuzzle310001, "a13s02n05p01n01.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1011);
 	_app->objectAddPresentation(kObject310002);
-	_app->objectPresentationAddImageToPuzzle(kObject310002, 1, kPuzzle310001, "n02.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1012);
+	_app->objectPresentationAddImageToPuzzle(kObject310002, 1, kPuzzle310001, "a13s02n05p01n02.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1012);
 	_app->objectAddPresentation(kObject310002);
-	_app->objectPresentationAddImageToPuzzle(kObject310002, 2, kPuzzle310001, "n03.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1013);
+	_app->objectPresentationAddImageToPuzzle(kObject310002, 2, kPuzzle310001, "a13s02n05p01n03.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1013);
 	_app->objectAddPresentation(kObject310002);
-	_app->objectPresentationAddImageToPuzzle(kObject310002, 3, kPuzzle310001, "n04.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1014);
+	_app->objectPresentationAddImageToPuzzle(kObject310002, 3, kPuzzle310001, "a13s02n05p01n04.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1014);
 	_app->objectAddPresentation(kObject310002);
-	_app->objectPresentationAddImageToPuzzle(kObject310002, 4, kPuzzle310001, "n05.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1015);
+	_app->objectPresentationAddImageToPuzzle(kObject310002, 4, kPuzzle310001, "a13s02n05p01n05.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1015);
 	_app->objectAddPresentation(kObject310002);
-	_app->objectPresentationAddImageToPuzzle(kObject310002, 5, kPuzzle310001, "n06.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1016);
+	_app->objectPresentationAddImageToPuzzle(kObject310002, 5, kPuzzle310001, "a13s02n05p01n06.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1016);
 	_app->objectAddPresentation(kObject310002);
-	_app->objectPresentationAddImageToPuzzle(kObject310002, 6, kPuzzle310001, "n07.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1016);
+	_app->objectPresentationAddImageToPuzzle(kObject310002, 6, kPuzzle310001, "a13s02n05p01n07.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1016);
 	_app->objectAddPresentation(kObject310002);
-	_app->objectPresentationAddImageToPuzzle(kObject310002, 7, kPuzzle310001, "n08.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1015);
+	_app->objectPresentationAddImageToPuzzle(kObject310002, 7, kPuzzle310001, "a13s02n05p01n08.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1015);
 	_app->objectAddPresentation(kObject310002);
-	_app->objectPresentationAddImageToPuzzle(kObject310002, 8, kPuzzle310001, "n09.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1014);
+	_app->objectPresentationAddImageToPuzzle(kObject310002, 8, kPuzzle310001, "a13s02n05p01n09.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1014);
 	_app->objectAddPresentation(kObject310002);
-	_app->objectPresentationAddImageToPuzzle(kObject310002, 9, kPuzzle310001, "n10.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1013);
+	_app->objectPresentationAddImageToPuzzle(kObject310002, 9, kPuzzle310001, "a13s02n05p01n10.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1013);
 	_app->objectAddPresentation(kObject310002);
-	_app->objectPresentationAddImageToPuzzle(kObject310002, 10, kPuzzle310001, "n11.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1012);
+	_app->objectPresentationAddImageToPuzzle(kObject310002, 10, kPuzzle310001, "a13s02n05p01n11.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1012);
 	_app->objectAddPresentation(kObject310002);
-	_app->objectPresentationAddImageToPuzzle(kObject310002, 11, kPuzzle310001, "n12.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1011);
+	_app->objectPresentationAddImageToPuzzle(kObject310002, 11, kPuzzle310001, "a13s02n05p01n12.tga", Common::Point(0, 0), true, kDrawTypeAlpha, 1011);
 
-	if (_app->getZoneArchiveType(kZone16) == kArchiveFile)
-		_app->setArchiveType(kArchiveFile);
+	if (_app->getZoneArchiveType(kZone16) == kArchiveArt)
+		_app->setArchiveType(kArchiveArt);
 
 	_app->objectPresentationShow(kObject310001);
 	_app->objectPresentationShow(kObject310002);
@@ -326,7 +328,105 @@ void Zone16Faust::onTimer(TimerId id) {
 }
 
 void Zone16Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {
-	error("[Zone16Faust::onButtonUp] Not implemented");
+	switch (id) {
+	default:
+		break;
+
+	case kObject310001:
+		if (_app->bagHasClickedObject()) {
+			// Put a book back on the shelf (slot = target, the word var keeps book - 310003)
+			int32 book = _app->bagGetClickedObject();
+			if (book < kObjectIHaveADreamMartinLutherKing || book > kObjectMephistoKlausMann || _app->varGetByte(311001 + target) != 0) {
+				_app->cursorDelete();
+				break;
+			}
+
+			_app->objectPresentationShow(kObject310001, target);
+			_app->objectPresentationShow(kObject310002, book - 310003);
+			_app->objectPresentationSetImageCoordinatesOnPuzzle(kObject310002, book - 310003, Common::Point(_app->varGetWord(311000 + target), 182));
+			_app->varSetWord(311012 + target, book - 310003);
+			_app->varSetByte(311001 + target, 1);
+			_app->soundPlay(310102);
+			_app->bagRemove(book);
+
+			for (uint32 i = 0; i < 12; i++) {
+				if (_app->varGetWord(311012 + i) != (int16)i) {
+					_app->cursorDelete();
+					return;
+				}
+			}
+
+			for (uint32 i = 0; i < 12; i++) {
+				if (_app->varGetByte(311001 + i) != 1) {
+					_app->cursorDelete();
+					return;
+				}
+			}
+
+			// All twelve books in order: end of episode Four
+			_app->soundStopAll(1024);
+			_app->playMovie("a13s02n05p01a01");
+			_app->playMovie("A13S02_E04M11");
+			_app->playMovie("A13S02_E04M12");
+
+			// Sets the progress animation frame (0x4dc040), it doesn't save
+			if (_app->getSaveManager()->getData()->progressState == kProgressState4)
+				_app->getSaveManager()->getData()->progress = 0x24;
+
+			_app->exitToMenu(kMenuAction0);
+		} else {
+			// Take a book
+			int16 book = _app->varGetWord(311012 + target);
+			_app->objectPresentationHide(kObject310001, target);
+			_app->objectPresentationHide(kObject310002, book);
+			_app->bagAdd(book + 310003);
+			_app->varSetByte(311001 + target, 0);
+			_app->soundPlay(310101);
+		}
+		break;
+
+	case kObject310015:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		// Close the bookcase door
+		_app->objectSetAccessibilityOff(kObject310015, 0, 0);
+		_app->objectSetAccessibilityOff(kObject310001);
+		_app->soundPlay(310103, kSoundLoop);
+		_app->timerStart(kTimer1, 30);
+		break;
+
+	case kObject310017:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		// Lift
+		if (target == 0) {
+			_app->rotationSetRolTo(311111, 270.0f, 0.0f, 87.0f);
+			_app->soundPlay(310106);
+			_app->displayFade("A13S01N01R01_0.bmp", "a13_black.bmp", 15, 0, kLoadFromCd, kArchiveArt);
+			_app->displayFade("a13_black.bmp", "A13S02N01R01_0.bmp", 15, 0, kLoadFromCd, kArchiveArt);
+			_app->rotationSetAlp(311211, 90.0f);
+			_app->rotationSetBet(311211, 0.0f);
+			_app->rotationSetRan(311211, 87.0f);
+			_app->rotationSetActive(311211);
+			_app->timerStart(kTimer2, 1000);
+		} else if (target == 1) {
+			_app->rotationSetRolTo(311211, 270.0f, 0.0f, 87.0f);
+			_app->soundPlay(310106);
+			_app->displayFade("A13S02N01R01_1.bmp", "a13_black.bmp", 15, 0, kLoadFromCd, kArchiveArt);
+			_app->displayFade("a13_black.bmp", "A13S01N01R01_1.bmp", 15, 0, kLoadFromCd, kArchiveArt);
+			_app->rotationSetAlp(311111, 90.0f);
+			_app->rotationSetBet(311111, 0.0f);
+			_app->rotationSetRan(311111, 87.0f);
+			_app->rotationSetActive(311111);
+		}
+		break;
+	}
 }
 
 void Zone16Faust::onUpdateBag(const Common::Point &point) {
@@ -343,15 +443,19 @@ void Zone16Faust::onUpdateBefore(Id movabilityFrom, Id movabilityTo, uint32 mova
 		break;
 
 	case 310001: {
+		// Read out the title of the book in slot movabilityTo (the target)
+		if (_app->varGetByte(311001 + movabilityTo) != 1)
+			break;
+
 		Id soundId = 310001 + _app->varGetWord(311012 + movabilityTo);
 		_app->soundPlay(soundId);
-		_app->varSetDword(311011, soundId);
+		_app->varSetDword(311001, soundId);
 		}
 		break;
 
 	case 310016:
 		_app->soundPlay(310013);
-		_app->varSetDword(311011, 310013);
+		_app->varSetDword(311001, 310013);
 		break;
 	}
 }
