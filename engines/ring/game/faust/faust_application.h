@@ -134,6 +134,8 @@ protected:
 	void sub_460150(uint32 type);
 	void sub_4ABA90(uint32 type);
 	void sub_4AC4E0(uint32 type);
+	void sub_4A0300(uint32 type);
+	void sub_494D30(uint32 type);
 	void loadSaveList(Id visualId, PuzzleId puzzleId);
 	void sub_4A08E0();
 	void sub_4A2CF0();

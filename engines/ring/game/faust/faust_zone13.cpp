@@ -24,6 +24,8 @@
 #include "ring/game/faust/faust_application.h"
 #include "ring/game/faust/faust_shared.h"
 
+#include "ring/base/saveload.h"
+
 #include "ring/debug.h"
 #include "ring/ring.h"
 #include "ring/helpers.h"
@@ -474,8 +476,76 @@ void Zone13Faust::onTimer(TimerId id) {
 	}
 }
 
+// FAUST.EXE 0x494490
 void Zone13Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {
-	error("[Zone13Faust::onButtonUp] Not implemented");
+	switch (id) {
+	default:
+		break;
+
+	case kObject91001:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0) {
+			_app->objectPresentationShow(kObject91001, 0);
+			_app->objectSetAccessibilityOff(kObject91001, 0, 0);
+			_app->soundPlay(91120);
+		} else if (target == 1) {
+			_app->soundPlay(91001);
+		}
+		break;
+
+	case kObject91002:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		if (target == 0) {
+			_app->objectPresentationShow(kObject91002, 0);
+			_app->objectSetAccessibilityOff(kObject91002, 0, 0);
+			_app->soundPlay(91101);
+		} else if (target == 1) {
+			_app->rotationSetAlp(91006, 267.0f);
+			_app->rotationSetBet(91006, 0.0f);
+			_app->rotationSetRan(91006, 87.0f);
+			_app->rotationSetActive(91006);
+			_app->soundPlay(91102);
+			_app->objectPresentationShow(kObject91002, 1);
+		}
+		break;
+
+	case kObject91003:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->soundPlay(91002);
+		break;
+
+	case kObject91301:
+		// Leaving the labyrinth (unlike the other objects, a held item doesn't stop the click)
+		if (_app->bagHasClickedObject())
+			_app->cursorDelete();
+
+		_app->soundStopAll(1024);
+
+		if (target == 1)
+			_app->soundPlay(91121);
+
+		if (!_app->varGetByte(98016)) {
+			_app->sub_4A0300(target == 1 ? 2 : 1);
+			break;
+		}
+
+		_app->setCurrentZone(kZoneSY);
+		_app->soundPlay(90001, kSoundLoop);
+		_app->puzzleSetActive(kPuzzleGeneralMenu);
+		break;
+	}
 }
 
 void Zone13Faust::onAnimationNextFrame(Id animationId, const Common::String &name, uint32 frame, uint32 frameCount) {
@@ -511,8 +581,77 @@ void Zone13Faust::onAnimationNextFrame(Id animationId, const Common::String &nam
 	}
 }
 
+// FAUST.EXE 0x4946b0: the lever in puzzle 91001 (object 91004, the only drag object here)
 void Zone13Faust::onBag(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, DragControl *dragControl, byte type) {
-	error("[Zone13Faust::onBag] Not implemented");
+	switch (type) {
+	default:
+		break;
+
+	case 1:
+		_app->cursorDelete();
+		_app->dragControlSetField45(2);
+		break;
+
+	case 2:
+		_app->soundStop(91106, 1024);
+
+		if (_app->varGetFloat(91001) <= 10.0) {
+			// Not pulled far enough: it springs back (timer 0)
+			_app->soundPlay(91105, kSoundLoop);
+			_app->soundPlay(91106, kSoundLoop);
+			_app->timerStart(kTimer0, 80);
+			break;
+		}
+
+		_app->playMovie("a09s02n01p01a01");
+		_app->displayFade("a09s02n01p01a01_b.bmp", "a09_black.bmp", 20, 500, kLoadFromCd, kArchiveArt);
+		_app->displayFade("a09_black.bmp", "a09s01_e03m07_start.bmp", 20, 0, kLoadFromCd, kArchiveArt);
+		_app->playMovie("a09s01_e03m07");
+		_app->displayFade("a09s01_e03m07.bmp", "a09_black.bmp", 20, 1000, kLoadFromCd, kArchiveArt);
+		_app->soundStopAll(1024);
+		_app->playMovie("a08s04_e03m08");
+
+		// Sets the progress animation frame (0x4dc040), it doesn't save
+		if (_app->getSaveManager()->getData()->progressState == kProgressState3)
+			_app->getSaveManager()->getData()->progress = 0x1d;
+
+		_app->exitToMenu(kMenuAction0);
+		break;
+
+	case 3: {
+		float delta = (float)(_app->dragControlGetOffsetX() * 0.07518796992481203);
+
+		if (_app->dragControlXLower())
+			_app->varSetFloat(91001, _app->varGetFloat(91001) + delta);
+
+		if (_app->dragControlXHigher())
+			_app->varSetFloat(91001, _app->varGetFloat(91001) - delta);
+
+		if (_app->varGetFloat(91001) <= 0.0)
+			_app->varSetFloat(91001, 1.0f);
+
+		if (_app->varGetFloat(91001) > 11.0)
+			_app->varSetFloat(91001, 10.0f);
+
+		_app->objectPresentationHide(kObject91004);
+		_app->objectPresentationShow(kObject91004, (uint32)_app->varGetFloat(91001));
+		_app->varSetByte(91000, (byte)floor(_app->varGetFloat(91001)));
+
+		if (_app->varGetByte(91000) == _app->varGetByte(91001))
+			break;
+
+		// A clang for every new step (sounds 91108..91116 in turn)
+		Id soundId = 91108 + _app->varGetByte(91002);
+		_app->soundSetVolume(soundId, rnd(10) + 90);
+		_app->soundPlay(soundId);
+		_app->varSetByte(91001, _app->varGetByte(91000));
+		_app->varSetByte(91002, _app->varGetByte(91002) + 1);
+
+		if (_app->varGetByte(91002) == 9)
+			_app->varSetByte(91002, 0);
+		}
+		break;
+	}
 }
 
 void Zone13Faust::onAfterRide(Id movabilityFrom, Id movabilityTo, uint32 movabilityIndex, Id target, MovabilityType movabilityType) {

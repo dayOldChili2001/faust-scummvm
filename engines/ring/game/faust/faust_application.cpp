@@ -2436,6 +2436,72 @@ void ApplicationFaust::sub_4AC4E0(uint32 type) {
 	}
 }
 
+// FAUST.EXE 0x4a0300: travel from A09 (zone 13) into A05 (zone 8)
+void ApplicationFaust::sub_4A0300(uint32 type) {
+	switch (type) {
+	default:
+		break;
+
+	case 1:
+		setSpace(kZone8);
+		varSetByte(53000, 1);
+
+		if (varGetByte(53121) == 1)
+			soundPlay(53124, kSoundLoop);
+
+		if (varGetByte(53121) == 2) {
+			soundPlay(53123, kSoundLoop);
+			soundPlay(53121, kSoundLoop);
+			timerStart(kTimer3, 2000);
+		}
+
+		soundPlay(53103, kSoundLoop);
+		soundPlay(52000, kSoundLoop);
+		timerStart(kTimer6, rnd(30000) + 30000);
+		rotationSetAlp(53021, 305.0f);
+		rotationSetBet(53021, 0.3f);
+		rotationSetRan(53021, 87.0f);
+		rotationSetActive(53021);
+		break;
+
+	case 2:
+		setSpace(kZone8);
+		rotationSetAlp(54011, 0.0f);
+		rotationSetBet(54011, 0.3f);
+		rotationSetRan(54011, 87.0f);
+		rotationSetActive(54011);
+		soundPlay(52000, kSoundLoop);
+		break;
+	}
+}
+
+// FAUST.EXE 0x494d30: travel into the A09S03 labyrinth (zone 13)
+void ApplicationFaust::sub_494D30(uint32 type) {
+	switch (type) {
+	default:
+		break;
+
+	case 1:
+		setSpace(kZone13);
+		soundPlay(91121);
+		soundPlay(91921, kSoundLoop);
+		rotationSetAlp(93051, 90.0f);
+		rotationSetBet(93051, 15.0f);
+		rotationSetRan(93051, 87.0f);
+		rotationSetActive(93051);
+		break;
+
+	case 2:
+		setSpace(kZone13);
+		soundPlay(91921, kSoundLoop);
+		rotationSetAlp(93050, 145.0f);
+		rotationSetBet(93050, 10.0f);
+		rotationSetRan(93050, 87.0f);
+		rotationSetActive(93050);
+		break;
+	}
+}
+
 // FAUST.EXE 0x4a0470 (zone 7)
 void ApplicationFaust::sub_4A08E0() {
 	_zone7->pactLoop();
