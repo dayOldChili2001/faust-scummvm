@@ -51,6 +51,9 @@ private:
 	ApplicationFaust *_app;
 
 	void playEndOfA05(bool setProgress);
+	void onSyrupSlot(uint32 slot, Id var);
+	bool isSyrupPuzzleSolved();
+	void stopA05Ambience();
 };
 
 } // End of namespace Ring
