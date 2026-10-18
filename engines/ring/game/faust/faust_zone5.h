@@ -43,9 +43,20 @@ public:
 	void onAnimationNextFrame(Id animationId, const Common::String &name, uint32 frame, uint32 frameCount) override;
 	void onSound(Id id, SoundType type, uint32 a3, bool process) override;
 	void onBag(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, DragControl *dragControl, byte type) override;
+	void onBeforeRide(Id movabilityFrom, Id movabilityTo, uint32 movabilityIndex, Id target, MovabilityType movabilityType) override;
 
 private:
 	ApplicationFaust *_app;
+
+	// Drag puzzle state (exe globals 0x4dc36c and 0x4dc384)
+	int32 _dragValue;
+	int32 _dragPrevious;
+
+	void addToByte(Id id, int8 value);
+	void saveView();
+	void restoreView();
+	void closeDoor(ObjectId id, uint32 door, bool upperCase);
+	void closeCupboard(bool upperCase);
 };
 
 } // End of namespace Ring
