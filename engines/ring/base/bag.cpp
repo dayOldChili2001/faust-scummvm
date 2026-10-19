@@ -611,8 +611,9 @@ void Bag::remove(ObjectId objectId) {
 }
 
 void Bag::removeAll() {
-	for (uint32 i = 0; i < _objects.size(); i++)
-		remove(_objects[i]->getId());
+	// FAUST.EXE 0x40e410 always removes the first object (an index loop would skip every other one)
+	while (!_objects.empty())
+		remove(_objects[0]->getId());
 }
 
 bool Bag::has(ObjectId objectId) {
