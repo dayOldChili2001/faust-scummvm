@@ -83,6 +83,7 @@
 #if defined(__DC__)
 #include "backends/platform/dc/DCLauncherDialog.h"
 #else
+#include "gui/browser.h"
 #include "gui/launcher.h"
 #endif
 
@@ -100,6 +101,7 @@
 
 #include "gui/dump-all-dialogs.h"
 
+#ifndef FAUST_STANDALONE
 static bool launcherDialog() {
 
 	// Discard any command line options. Those that affect the graphics
@@ -120,6 +122,73 @@ static bool launcherDialog() {
 		status = (dlg.runModal() != -1);
 	} while (noQuit && nullptr == ConfMan.getActiveDomain());
 	return status;
+}
+#endif
+
+#ifdef FAUST_STANDALONE
+static bool detectFaust(const Common::FSNode &dir, DetectedGame &game) {
+	Common::FSList files;
+	if (!dir.isDirectory() || !dir.getChildren(files, Common::FSNode::kListAll))
+		return false;
+
+	DetectedGames candidates = EngineMan.detectGames(files).listRecognizedGames();
+	for (uint i = 0; i < candidates.size(); i++) {
+		if (candidates[i].gameId == "faust" && !candidates[i].isAddOn) {
+			game = candidates[i];
+			return true;
+		}
+	}
+	return false;
+}
+
+// Selects the Faust target instead of showing the launcher. The game folder
+// is asked for on the first run, and again if it was moved or emptied.
+static bool faustDialog() {
+	Common::String target;
+	const Common::ConfigManager::DomainMap &domains = ConfMan.getGameDomains();
+	for (Common::ConfigManager::DomainMap::const_iterator it = domains.begin(); it != domains.end(); ++it) {
+		if (it->_value.getValOrDefault("gameid") == "faust") {
+			target = it->_key;
+			break;
+		}
+	}
+
+	DetectedGame game;
+	if (!target.empty() && detectFaust(Common::FSNode(ConfMan.getPath("path", target)), game)) {
+		ConfMan.setActiveDomain(target);
+		return true;
+	}
+
+	GUI::MessageDialog intro(_("Faust needs the files from your copy of the game.\n\nChoose the folder that contains FAUST.EXE."));
+	intro.runModal();
+	for (;;) {
+		GUI::BrowserDialog browser(_("Select the Faust game folder"), true);
+		if (browser.runModal() <= 0)
+			return false;
+		if (detectFaust(browser.getResult(), game))
+			break;
+
+		GUI::MessageDialog retry(_("Faust was not found in that folder.\n\nChoose the folder that contains FAUST.EXE."), _("OK"), _("Quit"));
+		if (retry.runModal() != GUI::kMessageOK)
+			return false;
+	}
+
+	if (target.empty())
+		target = EngineMan.createTargetForGame(game);
+	else
+		ConfMan.setPath("path", game.path, target);
+	ConfMan.flushToDisk();
+	ConfMan.setActiveDomain(target);
+	return true;
+}
+#endif
+
+static bool startDialog() {
+#ifdef FAUST_STANDALONE
+	return faustDialog();
+#else
+	return launcherDialog();
+#endif
 }
 
 static Common::Error identifyGame(const Common::String &debugLevels, const Plugin **detectionPlugin, DetectedGame &game, const void **descriptor) {
@@ -757,7 +826,7 @@ extern "C" int scummvm_main(int argc, const char * const argv[]) {
 
 	// Unless a game was specified, show the launcher dialog
 	if (nullptr == ConfMan.getActiveDomain() && !ConfMan.hasKey("dump_all_dialogs"))
-		launcherDialog();
+		startDialog();
 
 	// FIXME: We're now looping the launcher. This, of course, doesn't
 	// work as well as it should. In theory everything should be destroyed
@@ -933,7 +1002,12 @@ extern "C" int scummvm_main(int argc, const char * const argv[]) {
 				OSystem_PS3::spawnProcess(PREFIX "/scummvm.self", nullptr);
 			}
 #endif
-			launcherDialog();
+#ifdef FAUST_STANDALONE
+			// There is no launcher to return to, so quit where the backend allows it
+			if (!g_system->hasFeature(OSystem::kFeatureNoQuit))
+				break;
+#endif
+			startDialog();
 		}
 	}
 #ifdef USE_SDL_NET

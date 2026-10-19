@@ -343,7 +343,12 @@ void registerDefaults() {
 
 	ConfMan.registerDefault("cdrom", 0);
 
+#ifdef FAUST_STANDALONE
+	// The standalone build only runs Faust, so the warning is not needed
+	ConfMan.registerDefault("enable_unsupported_game_warning", false);
+#else
 	ConfMan.registerDefault("enable_unsupported_game_warning", true);
+#endif
 	ConfMan.registerDefault("enable_unsupported_addon_warning", true);
 
 #if defined(USE_FLUIDSYNTH) || defined(USE_FLUIDLITE)

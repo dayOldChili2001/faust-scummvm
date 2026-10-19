@@ -297,6 +297,11 @@ bool RingEngine::isMultiLanguage() const {
 }
 
 bool RingEngine::hasFeature(EngineFeature f) const {
+#ifdef FAUST_STANDALONE
+	// The standalone build has no launcher to return to
+	if (f == kSupportsReturnToLauncher)
+		return false;
+#endif
 	return (f == kSupportsReturnToLauncher) ||
 	       (f == kSupportsSubtitleOptions);
 }
