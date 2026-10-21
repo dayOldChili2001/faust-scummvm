@@ -417,6 +417,13 @@ void ApplicationFaust::showMenu(ZoneId zone, MenuAction menuAction) {
 		default:
 			break;
 
+		// FAUST.EXE 0x4222d2: all 12 rabbits shot, so the in-game menu shows the rabbit award
+		case kMenuAction0:
+			_saveManager->loadSave("Rabbit", kLoadSaveRead);
+			varSetByte(97006, 1);
+			puzzleSetMod(kPuzzleMenu, 1, 0);
+			break;
+
 		case kMenuAction1:
 			_saveManager->loadSave("Rabbit", kLoadSaveRead);
 			puzzleSetMod(kPuzzleMenu, 1, 0);
@@ -2188,8 +2195,12 @@ void ApplicationFaust::sub_45FF30() {
 	}
 }
 
+// FAUST.EXE 0x4607e0 (the name is Littleboy's; 0x460280 lies inside 0x460150). Only episode
+// Two's setup type 99 calls it, and the exe never calls setupZone(3, 99): the only type 99
+// call is setupZone(8, 99) from the extras (0x45e429), and the load path (0x45cdf9) replays
+// the pending (zone, type) pair. Dead in the exe as well, so it isn't ported.
 void ApplicationFaust::sub_460280() {
-	error("[ApplicationFaust::sub_460280] Not implemented");
+	warning("[ApplicationFaust::sub_460280] Dead in the original (exe 0x4607e0), not ported");
 }
 
 // FAUST.EXE 0x4687f0: zone 14 radio puzzle (object 22 / sound 112016) outcomes

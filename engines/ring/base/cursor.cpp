@@ -34,6 +34,53 @@ namespace Ring {
 
 #pragma region CursorBase
 
+// Hand an image to the cursor manager. The offset is the hotspot inside the image (the arrow's tip, the
+// centre of the busy cursor). 24/32bpp cursor images (TGA, with alpha) are converted to the screen format,
+// since the cursor manager is told the buffer is in that format.
+static void replaceCursor(ImageSurface *image, const Common::Point &hotspot) {
+	switch (image->getBPP()) {
+	default:
+		error("[replaceCursor] Invalid bit depth (%d)", image->getBPP());
+
+	case 16:
+		CursorMan.replaceCursor((byte *)image->getSurface()->getPixels(), image->getWidth(), image->getHeight(), hotspot.x, hotspot.y, 0, &image->getSurface()->format);
+		break;
+
+	case 24:
+	case 32: {
+		Graphics::PixelFormat formatScreen = g_system->getScreenFormat();
+		Graphics::PixelFormat formatCursor = image->getSurface()->format;
+
+		// Prepare buffer to hold new cursor data
+		uint32 size = image->getWidth() * image->getHeight() * formatScreen.bytesPerPixel;
+		byte *buf = (byte *)malloc(size);
+		if (!buf)
+			error("[replaceCursor] Cannot allocate cursor buffer (size: %d)", size);
+
+		memset(buf, 0, size);
+
+		if (!ImageSurface::crossBlit(buf,
+		                 (byte *)image->getSurface()->getBasePtr(0, 0),
+		                 image->getWidth() * formatScreen.bytesPerPixel,
+		                 image->getSurface()->pitch,
+		                 image->getWidth(),
+		                 image->getHeight(),
+		                 0,
+		                 formatScreen,
+		                 formatCursor,
+		                 true))
+			error("[replaceCursor] Cannot convert cursor image to proper screen format");
+
+		CursorMan.replaceCursor((byte *)buf, image->getWidth(), image->getHeight(), hotspot.x, hotspot.y, 0, &formatScreen);
+		free(buf);
+		}
+		break;
+	}
+
+	CursorMan.disableCursorPalette(true);
+	CursorMan.showMouse(true);
+}
+
 CursorBase::CursorBase() : BaseObject(kCursorInvalid) {
 	_type = kCursorTypeInvalid;
 	_frameCount = 0;
@@ -101,51 +148,7 @@ void CursorImage::draw() {
 	if (!_image->isInitialized())
 		alloc();
 
-	switch (_image->getBPP()) {
-	default:
-		error("[CursorImage::draw] Invalid bit depth (%d)", _image->getBPP());
-
-	case 16:
-		CursorMan.replaceCursor((byte *)_image->getSurface()->getPixels(), _image->getWidth(), _image->getHeight(), -_offset.x, -_offset.y, 0, &_image->getSurface()->format);
-		CursorMan.disableCursorPalette(true);
-		CursorMan.showMouse(true);
-		break;
-
-	case 24:
-	case 32: {
-		Graphics::PixelFormat formatScreen = g_system->getScreenFormat();
-		Graphics::PixelFormat formatCursor = _image->getSurface()->format;
-
-		// Prepare buffer to hold new cursor data
-		uint32 size = _image->getWidth() * _image->getHeight() * formatScreen.bytesPerPixel;
-		byte *buf = (byte *)malloc(size);
-		if (!buf)
-			error("[CursorImage::draw] Cannot allocate cursor buffer (size: %d)", size);
-
-		memset(buf, 0, size);
-
-		if (!ImageSurface::crossBlit(buf,
-		                 (byte *)_image->getSurface()->getBasePtr(0, 0),
-		                 _image->getWidth() * formatScreen.bytesPerPixel,
-		                 _image->getSurface()->pitch,
-		                 _image->getWidth(),
-		                 _image->getHeight(),
-		                 0,
-		                 formatScreen,
-		                 formatCursor,
-		                 true))
-			error("[CursorImage::draw] Cannot convert cursor image to proper screen format");
-
-		// Replace cursor
-		CursorMan.replaceCursor((byte *)buf, _image->getWidth(), _image->getHeight(), -_offset.x, -_offset.y, 0, &formatScreen);
-		CursorMan.disableCursorPalette(true);
-		CursorMan.showMouse(true);
-
-		// Cleanup
-		free(buf);
-		break;
-		}
-	}
+	replaceCursor(_image, _offset);
 }
 
 #pragma endregion
@@ -177,10 +180,8 @@ void CursorAnimation::draw() {
 	playFrame(false);
 
 	// Replace cursor
-	Graphics::PixelFormat format = g_system->getScreenFormat();
-	CursorMan.replaceCursor((byte *)getCurrentImage()->getSurface()->getPixels(), getCurrentImage()->getWidth(), getCurrentImage()->getHeight(), _offset.x, _offset.y, 0, &format);
-	CursorMan.disableCursorPalette(true);
-	CursorMan.showMouse(true);
+	if (getCurrentImage())
+		replaceCursor(getCurrentImage(), _offset);
 }
 
 #pragma endregion

@@ -167,12 +167,62 @@ void Zone11Faust::onTimer(TimerId id) {
 	}
 }
 
+// FAUST.EXE 0x499830: the A07 rabbit shoot. 72000 is a rabbit (target = which one),
+// 72001 the background. Bytes: 72000-72005 = rabbit up, 72006 = hits, 72007 = bullets.
 void Zone11Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {
-	error("[Zone11Faust::onButtonUp] Not implemented");
+	if (id != kObject72000 && id != kObject72001)
+		return;
+
+	if (_app->bagHasClickedObject()) {
+		_app->cursorDelete();
+		return;
+	}
+
+	if (_app->varGetByte(72007) <= 0) {
+		_app->soundPlay(72012);
+		_app->timerStart(kTimer2, 3000);
+		return;
+	}
+
+	if (id == kObject72000 && _app->varGetByte(72000 + target) == 1) {
+		_app->objectPresentationHide(kObject72000, target);
+		_app->varSetByte(72000 + target, 0);
+		_app->varSetByte(72006, _app->varGetByte(72006) + 1);
+
+		if (_app->varGetByte(72006) <= 12)
+			_app->objectPresentationShow(kObject8, _app->varGetByte(72006));
+
+		if (_app->varGetByte(72006) == 12) {
+			_app->timerStart(kTimer1, 3000);
+			_app->timerStop(kTimer3);
+		}
+
+		_app->soundPlay(72001);
+		_app->soundPlay(72000);
+		// The exe picks 72002 + rand() * 5 / 32768, so it can also play 72006 (a rabbit)
+		_app->soundPlay(72002 + rnd(5));
+	} else {
+		_app->soundPlay(72001);
+	}
+
+	_app->varSetByte(72007, _app->varGetByte(72007) - 1);
+	_app->objectPresentationHide(kObject9, _app->varGetByte(72007));
+	_app->soundStop(72013, 1024);
+	_app->rotationSet3DSoundOff(72014, 72014);
+	_app->rotationSet3DSoundOff(72014, 72015);
+	_app->rotationSet3DSoundOff(72014, 72016);
+	_app->timerStart(kTimer5, 5000);
 }
 
+// FAUST.EXE 0x499c90: a rabbit (animations 72000-72005) can be shot from frame 2 to frame 29
 void Zone11Faust::onAnimationNextFrame(Id animationId, const Common::String &name, uint32 frame, uint32 frameCount) {
-	error("[EventAnimationFaust::onAnimationNextFrameZone11] Not implemented");
+	if (animationId < 72000 || animationId > 72005)
+		return;
+
+	if (frame == 2)
+		_app->varSetByte(animationId, 1);
+	else if (frame == 29)
+		_app->varSetByte(animationId, 0);
 }
 
 } // End of namespace Ring
