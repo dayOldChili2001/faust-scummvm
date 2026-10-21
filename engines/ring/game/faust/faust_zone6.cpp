@@ -258,12 +258,146 @@ void Zone6Faust::onSetup(SetupType type) {
 	}
 }
 
+// FAUST.EXE 0x4a0e00
 void Zone6Faust::onTimer(TimerId id) {
-	error("[Zone6Faust::onTimer] Not implemented");
+	// The rotating stone: rotation 31013's angle picks the dial position (var 31001).
+	// Positions 4 and 5 don't click while the stone is over the hole (8).
+	static const struct {
+		float min;
+		float max;
+		float position;
+		bool overHole;
+	} sectors[] = {
+		{   1.0f,  45.0f, 1.0f, false },
+		{  46.0f,  90.0f, 2.0f, false },
+		{  91.0f, 135.0f, 3.0f, false },
+		{ 136.0f, 180.0f, 4.0f, true  },
+		{ 181.0f, 225.0f, 5.0f, true  },
+		{ 226.0f, 270.0f, 6.0f, false },
+		{ 271.0f, 315.0f, 7.0f, false },
+		{ 316.0f, 360.0f, 0.0f, false }
+	};
+
+	switch (id) {
+	default:
+		break;
+
+	case kTimer0:
+		_app->varSetFloat(31002, _app->rotationGetAlp(31013));
+
+		for (uint32 i = 0; i < ARRAYSIZE(sectors); i++) {
+			if (_app->varGetFloat(31002) < sectors[i].min || _app->varGetFloat(31002) > sectors[i].max)
+				continue;
+
+			_app->varSetFloat(31001, sectors[i].position);
+			_app->objectPresentationHide(kObject31001);
+			_app->objectPresentationShow(kObject31001, (uint32)_app->varGetFloat(31001));
+
+			if (_app->varGetFloat(31003) == _app->varGetFloat(31001))
+				continue;
+
+			if (sectors[i].overHole && _app->varGetFloat(31003) == 8.0f)
+				continue;
+
+			_app->soundPlay(31004 + rnd(6));
+			_app->soundPlay(31001);
+			_app->varSetFloat(31003, _app->varGetFloat(31001));
+		}
+
+		if (_app->varGetFloat(31002) >= 168.75 && _app->varGetFloat(31002) <= 191.25) {
+			_app->varSetFloat(31001, 8.0f);
+
+			if (_app->varGetByte(31001) == 1) {
+				_app->objectPresentationHide(kObject31001);
+				_app->objectPresentationShow(kObject31001, (uint32)_app->varGetFloat(31001));
+
+				if (_app->varGetFloat(31003) != _app->varGetFloat(31001)) {
+					_app->soundPlay(31004 + rnd(6));
+					_app->soundPlay(31001);
+					_app->varSetFloat(31003, _app->varGetFloat(31001));
+
+					if (_app->varGetByte(31002) == 0) {
+						_app->soundPlay(31002);
+						_app->varSetByte(31002, 1);
+					}
+				}
+			} else if (_app->varGetFloat(31003) != _app->varGetFloat(31001)) {
+				_app->soundPlay(31012);
+				_app->varSetFloat(31003, _app->varGetFloat(31001));
+			}
+		}
+
+		// Leaving the hole
+		if ((_app->varGetFloat(31001) == 4.0f && _app->varGetFloat(31003) == 8.0f)
+		 || (_app->varGetFloat(31001) == 5.0f && _app->varGetFloat(31003) == 8.0f)) {
+			_app->soundPlay(31004 + rnd(6));
+			_app->soundPlay(31001);
+			_app->varSetFloat(31003, _app->varGetFloat(31001));
+		}
+		break;
+
+	case kTimer1:
+		_app->timerStop(kTimer1);
+		_app->soundStopAll(1024);
+		_app->playMovie("A04S01_E01M07");
+
+		// FAUST.EXE 0x4a0e34 sets the progress animation frame (0x4dc040), it doesn't save
+		if (_app->getSaveManager()->getData()->progressState == kProgressState1)
+			_app->getSaveManager()->getData()->progress = 4;
+
+		_app->exitToMenu(kMenuAction0);
+		break;
+	}
 }
 
+// FAUST.EXE 0x4a0ba0
 void Zone6Faust::onButtonUp(ObjectId id, Id target, Id puzzleRotationId, uint32 a4, const Common::Point &point) {
-	error("[Zone6Faust::onButtonUp] Not implemented");
+	switch (id) {
+	default:
+		break;
+
+	case kObject31002:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		_app->soundPlay(31004 + rnd(6));
+		_app->objectPresentationShow(kObject31002, 1);
+		_app->objectSetAccessibilityOff(kObject31002);
+		break;
+
+	case kObject31003:
+		if (_app->bagHasClickedObject()) {
+			_app->cursorDelete();
+			break;
+		}
+
+		switch (target) {
+		default:
+			break;
+
+		case 0:
+			if (_app->varGetByte(31002) == 1) {
+				_app->soundPlay(31010);
+				_app->objectPresentationShow(kObject31003, 0);
+				_app->objectPresentationShow(kObject31003, 2);
+				_app->objectSetAccessibilityOff(kObject31003, 0, 0);
+				_app->objectSetAccessibilityOn(kObject31003, 1, 1);
+			}
+			break;
+
+		case 1:
+			_app->soundPlay(31011);
+			_app->objectPresentationHide(kObject31003, 0);
+			_app->objectPresentationShow(kObject31003, 1);
+			_app->objectSetAccessibilityOff(kObject31003, 1, 1);
+			_app->bagAdd(kObjectRolodex);
+			_app->timerStart(kTimer1, 1000);
+			break;
+		}
+		break;
+	}
 }
 
 void Zone6Faust::onAnimationNextFrame(Id animationId, const Common::String &name, uint32 frame, uint32 frameCount) {
@@ -285,8 +419,34 @@ void Zone6Faust::onUpdateBefore(Id movabilityFrom, Id movabilityTo, uint32 movab
 	}
 }
 
+// FAUST.EXE 0x4a0cf0 (onAfterRide gets the new rotation first, then the previous one)
 void Zone6Faust::onAfterRide(Id movabilityFrom, Id movabilityTo, uint32 movabilityIndex, Id target, MovabilityType movabilityType) {
-	error("[Zone6Faust::onAfterRide] Not implemented");
+	if (movabilityType != kMovabilityRotationToRotation)
+		return;
+
+	switch (movabilityFrom) {
+	default:
+		break;
+
+	case 31013:
+		if (movabilityTo == 31012)
+			_app->timerStart(kTimer0, 50);
+		break;
+
+	case 31012:
+		if (movabilityTo == 31013) {
+			_app->timerStop(kTimer0);
+			_app->objectPresentationHide(kObject31001);
+		} else if (movabilityTo == 31011 && _app->varGetByte(31003) == 0) {
+			_app->varSetByte(31003, 1);
+			_app->displayFade("a03s01n02_Fade_Rot.bmp", "a03_black.bmp", 12, 0, kLoadFromCd, kArchiveArt);
+			_app->displayFade("a03_black.bmp", "a03s01n02_Fade_Movie_Start.bmp", 12, 0, kLoadFromCd, kArchiveArt);
+			_app->playMovie("A03S01_E01M06");
+			_app->displayFade("a03s01n02_Fade_Movie_End.bmp", "a03_black.bmp", 12, 0, kLoadFromCd, kArchiveArt);
+			_app->displayFade("a03_black.bmp", "a03s01n02_Fade_Rot.bmp", 12, 0, kLoadFromCd, kArchiveArt);
+		}
+		break;
+	}
 }
 
 } // End of namespace Ring
