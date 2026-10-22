@@ -24,8 +24,11 @@
 #include "ring/base/stream.h"
 
 #include "ring/graphics/image.h"
+#include "ring/ring.h"
 
 #include "common/archive.h"
+#include "common/savefile.h"
+#include "common/system.h"
 
 #include "image/bmp.h"
 
@@ -37,6 +40,15 @@ bool ImageLoaderBMP::load(ImageSurface *image, ArchiveType, ZoneId, LoadFrom, Dr
 
 	// Get image stream
 	Common::SeekableReadStream *stream = SearchMan.createReadStreamForMember(Common::Path(image->getName(), '/'));
+
+	// The save thumbnails the original writes to disk are savefiles here ("<gameid>-<user folder>-<file>.bmp",
+	// and "<gameid>-osc.bmp" for the save screen's preview)
+	if (!stream)
+		stream = g_system->getSavefileManager()->openForLoading(image->getName());
+
+	if (!stream)
+		stream = g_system->getSavefileManager()->openForLoading(Common::String::format("%s-%s", ((RingEngine *)g_engine)->getGameDescription()->desc.gameId, image->getName().c_str()));
+
 	if (!stream) {
 		warning("[ImageLoaderBMP::load] Cannot load image (%s)", image->getName().c_str());
 		return false;
@@ -52,8 +64,14 @@ bool ImageLoaderBMP::load(ImageSurface *image, ArchiveType, ZoneId, LoadFrom, Dr
 		return false;
 	}
 
-	Graphics::Surface *surface = new Graphics::Surface();
-	surface->copyFrom(*bmp->getSurface());
+	// Our blitter can't downsample 24bpp (the save thumbnails, written with Image::writeBMP)
+	Graphics::Surface *surface;
+	if (bmp->getSurface()->format.bytesPerPixel == 3) {
+		surface = bmp->getSurface()->convertTo(g_system->getScreenFormat());
+	} else {
+		surface = new Graphics::Surface();
+		surface->copyFrom(*bmp->getSurface());
+	}
 
 	image->setSurface(surface);
 

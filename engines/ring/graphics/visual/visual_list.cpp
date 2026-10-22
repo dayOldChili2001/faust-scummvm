@@ -34,6 +34,7 @@
 #include "ring/helpers.h"
 
 #include "common/file.h"
+#include "common/savefile.h"
 #include "common/tokenizer.h"
 
 namespace Ring {
@@ -88,7 +89,8 @@ VisualObjectList::VisualObjectList(Id id) : Visual(id) {
 }
 
 VisualObjectList::~VisualObjectList() {
-	CLEAR_ARRAY(Object, _objects);
+	// The objects belong to the application (exitZone deletes them)
+	_objects.clear();
 	CLEAR_ARRAY(ImageHandle, _images);
 	CLEAR_ARRAY(Hotspot, _hotspots);
 
@@ -569,6 +571,7 @@ uint32 VisualObjectList::handleLeftButtonUp(const Common::Point &point) {
 	return 0;
 }
 
+// FAUST.EXE 0x4ad190: hovering reports types 4-6 (the clicks in handleLeftButtonUp are 1-3)
 uint32 VisualObjectList::handleUpdate(const Common::Point &point) {
 	if (!_visible)
 		return false;
@@ -589,7 +592,7 @@ uint32 VisualObjectList::handleUpdate(const Common::Point &point) {
 				getApp()->getScreenManager()->draw(_upGur, _origin + _upOffset, _upGur->getDrawType());
 		}
 
-		getApp()->onVisualList(_id, 1, point);
+		getApp()->onVisualList(_id, 4, point);
 		return 1;
 
 	case kCursorActive:
@@ -600,13 +603,13 @@ uint32 VisualObjectList::handleUpdate(const Common::Point &point) {
 				getApp()->getScreenManager()->draw(_downGur, _origin + _downOffset, _downGur->getDrawType());
 		}
 
-		getApp()->onVisualList(_id, 2, point);
+		getApp()->onVisualList(_id, 5, point);
 		return 2;
 
 	case kCursorPassiveDraw:
 		getApp()->cursorSelect(kCursorMenuActive);
 
-		getApp()->onVisualList(_id, 3, point);
+		getApp()->onVisualList(_id, 6, point);
 		return 3;
 	}
 
@@ -633,7 +636,7 @@ void VisualObjectList::add(ObjectId objectId) {
 	} else {
 		// Compute path
 		Common::String path = Common::String::format("%s%s.%s", _iconPath.c_str(), object->getName().c_str(), Application::getFileExtension(_imageType).c_str());
-		if (!Common::File::exists(Common::Path(path, '/')))
+		if (!Common::File::exists(Common::Path(path, '/')) && !g_system->getSavefileManager()->exists(path))
 			path = "dummyLS.bmp";
 
 		image = new ImageHandle(path, Common::Point(0, 0), true, kZoneNone, kLoadFromDisk, _imageType, kArchiveFile);
@@ -657,14 +660,15 @@ void VisualObjectList::remove(ObjectId objectId, bool removeObject) {
 	if (!_objects.has(objectId))
 		return;
 
-	if (removeObject)
-		getApp()->objectRemove(objectId);
-
-	// Remove object image
+	// Remove object image (find it before objectRemove deletes the object)
 	uint32 index = _objects.getIndex(objectId);
 
+	delete _images[index];
 	_images.remove_at(index);
 	_objects.remove_at(index);
+
+	if (removeObject)
+		getApp()->objectRemove(objectId);
 
 	_itemCount = _objects.size();
 	if (_itemCount <= _field_BD)

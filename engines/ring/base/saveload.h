@@ -152,6 +152,8 @@ public:
 
 	// Thumbnail image
 	void setThumbnail(ImageSurface *image);
+	Common::String getPreviewFile() const;
+	Common::String getIconDirectory();
 
 	// Accessors
 	bool isSaving() const;

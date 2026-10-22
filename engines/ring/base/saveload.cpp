@@ -547,8 +547,28 @@ bool SaveManager::saveAs(const Common::String &name) {
 	return saved;
 }
 
+// The original also writes the thumbnail to data/SY/Image/osc.bmp, the save screen's preview
 void SaveManager::setThumbnail(ImageSurface *image) {
 	_header.setThumbnail(image->getSurface());
+
+	Common::OutSaveFile *file = g_system->getSavefileManager()->openForSaving(getPreviewFile(), false);
+	if (!file) {
+		warning("[SaveManager::setThumbnail] Cannot write the preview image");
+		return;
+	}
+
+	Image::writeBMP(*file, *_header.thumbnail);
+	file->finalize();
+	delete file;
+}
+
+Common::String SaveManager::getPreviewFile() const {
+	return Common::String::format("%s-osc.bmp", ((RingEngine *)g_engine)->getGameDescription()->desc.gameId);
+}
+
+// Data/Save/<user>/ in the original, where saveAs puts the thumbnails
+Common::String SaveManager::getIconDirectory() {
+	return getUserFile("");
 }
 
 #pragma region File lists

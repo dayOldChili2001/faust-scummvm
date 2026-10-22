@@ -1498,8 +1498,10 @@ void ZoneSystemFaust::onButtonUp(ObjectId id, Id target, Id, uint32, const Commo
 		_name.clear();
 		_app->objectPresentationSetTextToPuzzle(kObject99601, 1, 0, _name);
 		_app->visualListSetOn(4, kPuzzleGeneralMenu);
+		// The original sets the icon directory (the save thumbnails) after loading the list,
+		// but our list looks for the icons when items are added
+		_app->visualListSetIconDirectory(4, kPuzzleGeneralMenu, _app->getSaveManager()->getIconDirectory());
 		_app->loadSaveList(4, kPuzzleGeneralMenu);
-		// The original also points the list icons to Data/Save/<user>/ (the save thumbnails)
 		break;
 
 	case kObject99002: {

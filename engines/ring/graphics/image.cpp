@@ -232,27 +232,21 @@ ImageSurface *ImageSurface::zoom(float xZoom, float yZoom) {
 	if (!isInitialized())
 		error("[ImageSurface::zoom] ImageSurface not initialized!");
 
-	if (getBPP() != 24)
-		error("[ImageSurface::zoom] Not a 24bpp image!");
-
-	// Create new image to store zoomed image
+	// The original only zooms 24bpp images; ours keep the source format (the screen copy is 16bpp)
 	uint32 width = (uint32)(getWidth() * xZoom);
 	uint32 height = (uint32)(getHeight() * yZoom);
+	byte bytesPerPixel = _surface->format.bytesPerPixel;
 
 	ImageSurface *image = new ImageSurface();
-	image->create(24, 2, width, height);
-
-	byte *zoomedData = (byte *)image->getSurface()->getBasePtr(0, 0);
+	image->_surface = new Graphics::Surface();
+	image->_surface->create((uint16)width, (uint16)height, _surface->format);
 
 	for (uint32 j = 0; j < height; j++) {
+		byte *zoomedData = (byte *)image->_surface->getBasePtr(0, (int)j);
+
 		for (uint32 i = 0; i < width; i++) {
-			byte *data = (byte *)_surface->getBasePtr((uint32)(i / xZoom), (uint32)(j / yZoom));
-
-			zoomedData[0] = data[0];
-			zoomedData[1] = data[1];
-			zoomedData[2] = data[2];
-
-			zoomedData += 3;
+			memcpy(zoomedData, _surface->getBasePtr((int)(i / xZoom), (int)(j / yZoom)), bytesPerPixel);
+			zoomedData += bytesPerPixel;
 		}
 	}
 
