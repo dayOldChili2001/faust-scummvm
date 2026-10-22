@@ -413,8 +413,12 @@ Common::Point Object::getImageCoordinatesOnPuzzle(uint32 presentationIndex, uint
 }
 
 void Object::show(uint32 presentationIndex) {
-	if (presentationIndex >= _presentations.size())
-		error("[Object::showPresentation] Invalid presentation index (was: %d, max: %d)", presentationIndex, _presentations.size() - 1);
+	// The original only logs this (Faust 0x41ad60): Faust's status screen shows index 98001 + 1,
+	// which is past the last one once the game is finished (98001 = 8)
+	if (presentationIndex >= _presentations.size()) {
+		warning("[Object::showPresentation] Invalid presentation index (was: %d, max: %d)", presentationIndex, _presentations.size() - 1);
+		return;
+	}
 
 	_presentations[presentationIndex]->show();
 }
