@@ -752,23 +752,37 @@ bool Application::scrollImage(Common::String filename, uint32 ticksWait, LoadFro
 		return false;
 	}
 
-	// Scroll image
+	// FAUST.EXE 0x4745d0: scroll the image up one line per frame until its bottom edge
+	// reaches the screen's, then wait ticksWait ms. Escape skips (and ends the credits).
+	Graphics::Surface *screen = _screenManager->getSurface();
+	Graphics::Surface *surface = image->getSurface()->convertTo(screen->format);
+	int16 width = (int16)MIN<int16>(surface->w, 640);
+	int32 lines = surface->h - 480;
+
 	bool skipped = false;
-	uint32 offset = 0;
-	if (image->getWidth() > 448) {
-
-		while (offset < image->getWidth() - 448 && !skipped) {
-			_screenManager->drawImage(image, Common::Point(0, 16), 640, 464, 0, offset);
-
-			// Skip if ESCAPE is pressed
-			if (checkEscape())
-				skipped = true;
+	int32 offset = 0;
+	for (; offset < lines; offset++) {
+		if (checkEscape()) {
+			skipped = true;
+			break;
 		}
+
+		uint32 frameStart = g_system->getMillis();
+		screen->copyRectToSurface(*surface, 0, 0, Common::Rect(0, (int16)offset, width, (int16)(offset + 480)));
+		_screenManager->updateScreen();
+		g_system->updateScreen();
+
+		// The original scrolls as fast as it can draw; keep it at about 60 lines a second
+		uint32 elapsed = g_system->getMillis() - frameStart;
+		if (elapsed < 16)
+			g_system->delayMillis(16 - elapsed);
 	}
 
-	if (offset == image->getWidth() - 448)
+	if (offset == lines)
 		waitForEscape(ticksWait);
 
+	surface->free();
+	delete surface;
 	delete image;
 
 	return skipped;
@@ -971,10 +985,15 @@ void Application::fadeOut(uint32 frameCount, Color colorTo, uint32 ticksWait) {
 	delete image;
 }
 
+// FAUST.EXE 0x475b80: wait ticksWait ms, or until Escape is pressed
 void Application::waitForEscape(uint32 ticksWait) const {
-	for (uint32 i = 0; i < ticksWait; i++)
+	uint32 start = g_system->getMillis();
+	while (g_system->getMillis() - start < ticksWait) {
 		if (checkEscape())
 			break;
+
+		g_system->delayMillis(5);
+	}
 }
 
 void Application::playMovie(Common::String filename, float frameDivider) {
@@ -3107,7 +3126,9 @@ void Application::startLogin(const PuzzleId &puzzlePreferences) {
 	// Add list to login screen
 	for (uint32 i = 0; i < users->size(); i++) {
 		ObjectId objectId = i + 20000000;
-		objectAdd(objectId, (*users)[i]->description, (*users)[i]->filename, 1);
+		// The original's user folders are the user names; ours are "user<n>", so name the object after the user
+		// (clicking it copies the name into the login field; SaveManager looks users up by either)
+		objectAdd(objectId, (*users)[i]->description, (*users)[i]->description, 1);
 		visualListAdd(3, puzzlePreferences, objectId);
 	}
 

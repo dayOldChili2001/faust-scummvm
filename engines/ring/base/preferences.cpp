@@ -48,9 +48,9 @@ PreferenceHandler::~PreferenceHandler() {
 void PreferenceHandler::load() {
 	loadDefaults();
 
-	// Register default values
-	ConfMan.registerDefault("music_volume", _volume);
-	ConfMan.registerDefault("speech_volume", _volumeDialog);
+	// Register default values (ScummVM volumes run 0-255, ours 0-100)
+	ConfMan.registerDefault("music_volume", toMixerVolume(_volume));
+	ConfMan.registerDefault("speech_volume", toMixerVolume(_volumeDialog));
 	ConfMan.registerDefault("subtitles", _showSubtitles);
 	ConfMan.registerDefault("reverse_stereo", _reverseStereo);
 
@@ -61,8 +61,8 @@ void PreferenceHandler::load() {
 	_reverseStereo = ConfMan.getInt("reverse_stereo");
 
 	// We need to convert volume from ScummVM values (0-255) to in-game values (0-100)
-	_volume       = (int32)(_volume * 100.0f/255.0f);
-	_volumeDialog = (int32)(_volumeDialog * 100.0f/255.0f);
+	_volume       = fromMixerVolume(_volume);
+	_volumeDialog = fromMixerVolume(_volumeDialog);
 
 	_volume       = CLIP(_volume, 0, 100);
 	_volumeDialog = CLIP(_volumeDialog, 0, 100);
@@ -106,10 +106,22 @@ void PreferenceHandler::save(int32 volume, int32 volumeDialog, int32 reverseSter
 	setup();
 
 	// We need to convert volume values (0-100) to ScummVM values (0-255)
-	ConfMan.setInt("music_volume", (int)(_volume * 255.0f/100.0f));
-	ConfMan.setInt("speech_volume", (int)(_volumeDialog * 255.0f/100.0f));
+	ConfMan.setInt("music_volume", toMixerVolume(_volume));
+	ConfMan.setInt("speech_volume", toMixerVolume(_volumeDialog));
 	ConfMan.setBool("subtitles", _showSubtitles);
 	ConfMan.setInt("reverse_stereo", _reverseStereo);
+
+	// The original writes aPre.ini right away
+	ConfMan.flushToDisk();
+}
+
+// Rounded both ways, so saving the preferences again doesn't lower the volume
+int32 PreferenceHandler::toMixerVolume(int32 volume) {
+	return (volume * 255 + 50) / 100;
+}
+
+int32 PreferenceHandler::fromMixerVolume(int32 volume) {
+	return (volume * 100 + 127) / 255;
 }
 
 void PreferenceHandler::set(int32 volume, int32 volumeDialog, int32 reverseStereo, bool showSubtitles) {

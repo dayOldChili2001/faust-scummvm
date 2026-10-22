@@ -51,6 +51,8 @@ private:
 	bool  _showSubtitles;
 
 	void loadDefaults();
+	static int32 toMixerVolume(int32 volume);
+	static int32 fromMixerVolume(int32 volume);
 	void set(int32 volume, int32 volumeDialog, int32 reverseStereo, bool showSubtitles);
 	void setup();
 };
