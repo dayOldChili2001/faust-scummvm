@@ -61,7 +61,7 @@ namespace Ring {
 
 RingEngine::RingEngine(OSystem *syst, const RingGameDescription *gd) :
 	Engine(syst), _gameDescription(gd), _random("ring"),
-	_application(nullptr), _mouseButtonPressed(false) , _flag(true) {
+	_application(nullptr), _pauseStart(0), _mouseButtonPressed(false) , _flag(true) {
 
 	// Adding the default directories
 	const Common::FSNode gameDataDir(ConfMan.getPath("path"));
@@ -91,6 +91,9 @@ Common::Error RingEngine::run() {
 
 	// Create debugger. It requires GFX to be initialized
 	setDebugger(new Debugger(this));
+
+	// Apply ScummVM's mute setting (the volumes are the game's own, see PreferenceHandler)
+	syncSoundSettings();
 
 	// Create application
 	switch (_gameDescription->gameType) {
@@ -307,10 +310,22 @@ bool RingEngine::hasFeature(EngineFeature f) const {
 }
 
 void RingEngine::syncSoundSettings() {
+	// All sounds play as kPlainSoundType, so this only applies the mute setting
+	Engine::syncSoundSettings();
+
 	if (!_application)
 		return;
 
 	_application->syncSoundSettings();
+}
+
+void RingEngine::pauseEngineIntern(bool pause) {
+	Engine::pauseEngineIntern(pause);
+
+	if (pause)
+		_pauseStart = _system->getMillis();
+	else if (_application)
+		_application->addPausedTicks(_system->getMillis() - _pauseStart);
 }
 
 #pragma region Floating point

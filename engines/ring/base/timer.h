@@ -38,6 +38,7 @@ public:
 	// Polled from the main loop (replaces the old threaded timer procs)
 	bool isDue(uint32 now) const { return now - _lastFire >= _elapseTime; }
 	void markFired(uint32 now) { _lastFire = now; }
+	void addTicks(uint32 ticks) { _tickStart += ticks; _lastFire += ticks; }
 
 	// Accessors
 	void setTickStart(uint32 ticks) { _tickStart = ticks; }
@@ -64,6 +65,7 @@ public:
 
 	void start(TimerId id, uint32 elapseTime);
 	void stop(TimerId id);
+	void addTicks(uint32 ticks);
 	void stopAll();
 	bool has(TimerId id);
 	void incrementFiredCount(TimerId id);

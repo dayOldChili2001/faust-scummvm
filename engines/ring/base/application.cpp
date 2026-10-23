@@ -2491,6 +2491,16 @@ void Application::syncSoundSettings() {
 	refreshPreferences();
 }
 
+// The dialogs (subtitles) and timers run on the system clock, which keeps going while the engine is paused
+// (e.g. in the ScummVM menu) and the mixer is not: move them on so they stay in step with the sounds
+void Application::addPausedTicks(uint32 ticks) {
+	if (_dialogHandler)
+		_dialogHandler->addTicks(ticks);
+
+	if (_timerHandler)
+		_timerHandler->addTicks(ticks);
+}
+
 #pragma endregion
 
 #pragma region Timer

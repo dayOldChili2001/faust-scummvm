@@ -1553,9 +1553,10 @@ void ZoneSystemFaust::onButtonUp(ObjectId id, Id target, Id, uint32, const Commo
 		_app->objectSetAccessibilityOn(kObject99042);
 
 		if (_app->getPreferenceHandler()) {
-			// The original stores 75..100 (4 * pref - 300 gives slider space); our handler already runs 0..100
-			_prefsVolume        = _app->getPreferenceHandler()->getVolume();
-			_prefsVolumeDialog  = _app->getPreferenceHandler()->getVolumeDialog();
+			// FAUST.EXE 0x45d40e: the preferences hold 75..100 and the sliders show 4 * pref - 300
+			// (clipped, since ScummVM's own volume sliders can set lower values)
+			_prefsVolume        = CLIP<int32>(4 * _app->getPreferenceHandler()->getVolume() - 300, 0, 100);
+			_prefsVolumeDialog  = CLIP<int32>(4 * _app->getPreferenceHandler()->getVolumeDialog() - 300, 0, 100);
 			_prefsReverseStereo = (_app->getPreferenceHandler()->getReverseStereo() == 1);
 			_prefsSubtitles     = _app->getPreferenceHandler()->getShowSubtitles();
 		} else {
@@ -2340,8 +2341,8 @@ void ZoneSystemFaust::savePreferences() {
 		return;
 	}
 
-	// The original stores slider / 4 + 75; our handler maps 0..100 onto the ScummVM volume range
-	_app->getPreferenceHandler()->save(_prefsVolume, _prefsVolumeDialog, _prefsReverseStereo ? 1 : -1, _prefsSubtitles);
+	// FAUST.EXE 0x45f0a1: the sliders (0..100) are stored as slider / 4 + 75, so the lowest setting is -25 dB
+	_app->getPreferenceHandler()->save(_prefsVolume / 4 + 75, _prefsVolumeDialog / 4 + 75, _prefsReverseStereo ? 1 : -1, _prefsSubtitles);
 }
 
 void ZoneSystemFaust::onUpdateBag(const Common::Point &point) {

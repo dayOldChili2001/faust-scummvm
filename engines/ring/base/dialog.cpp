@@ -324,6 +324,11 @@ bool DialogHandler::removeDialog(Id id) {
 	return true;
 }
 
+void DialogHandler::addTicks(uint32 ticks) {
+	for (Common::Array<Dialog *>::iterator it = _dialogs.begin(); it != _dialogs.end(); it++)
+		(*it)->addTicks(ticks);
+}
+
 void DialogHandler::play() {
 	if (_dialogs.empty())
 		return;

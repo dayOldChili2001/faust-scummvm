@@ -97,9 +97,14 @@ bool SoundEntry::checkPlaying() {
 	return (playing == false);
 }
 
+// FAUST.EXE 0x46b8b0 passes DirectSound attenuations in hundredths of a dB:
+// volume = -10000 * (1 - volume% * multiplier% * global), pan = pan * 100 (on the other channel)
 void SoundEntry::setVolumeAndPan() const {
-	getSound()->getMixer()->setChannelVolume(_handle, (byte)(_volume * _multiplier * 0.01f));
-	getSound()->getMixer()->setChannelBalance(_handle, (byte)_pan);
+	int32 volume = -10000 + (int32)(_multiplier * 0.01f * (_volume * 0.01f) * getSound()->getGlobalVolume() * 10000.0f);
+	int32 pan    = _pan * 100;
+
+	getSound()->getMixer()->setChannelVolume(_handle, (byte)(pow(10.0, volume / 2000.0) * Audio::Mixer::kMaxChannelVolume + 0.5));
+	getSound()->getMixer()->setChannelBalance(_handle, (int8)((pan < 0 ? -127 : 127) * (1.0 - pow(10.0, -ABS(pan) / 2000.0))));
 }
 
 SoundFormat SoundEntry::getFormat(Common::String filename) {

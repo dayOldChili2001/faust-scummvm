@@ -69,6 +69,7 @@ public:
 	void hide();
 
 	void setTicks();
+	void addTicks(uint32 ticks) { _startTicks += ticks; }
 
 	int32 getLineIndex();
 	Common::String getLine1(uint32 index);
@@ -97,6 +98,7 @@ public:
 
 	void addDialog(Dialog *dialog);
 	bool removeDialog(Id id);
+	void addTicks(uint32 ticks);
 
 	void play();
 	bool isPlaying(Id id);

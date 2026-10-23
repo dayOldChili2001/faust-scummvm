@@ -78,6 +78,7 @@ public:
 	// Features
 	bool hasFeature(EngineFeature f) const override;
 	void syncSoundSettings() override;
+	void pauseEngineIntern(bool pause) override;
 
 	// Game type
 	const RingGameDescription *getGameDescription() { return _gameDescription; }
@@ -103,6 +104,9 @@ private:
 
 	// Game
 	Application *_application;
+
+	// Pause
+	uint32 _pauseStart;
 
 	// Flags
 	bool _mouseButtonPressed;

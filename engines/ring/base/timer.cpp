@@ -83,6 +83,11 @@ void TimerHandler::stop(TimerId id) {
 	_timers.remove(id);
 }
 
+void TimerHandler::addTicks(uint32 ticks) {
+	for (uint32 i = 0; i < _timers.size(); i++)
+		_timers[i]->addTicks(ticks);
+}
+
 void TimerHandler::stopAll() {
 	CLEAR_ARRAY(Timer, _timers);
 }

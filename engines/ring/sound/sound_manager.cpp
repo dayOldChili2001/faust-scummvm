@@ -208,15 +208,19 @@ bool SoundManager::isPlaying(Id soundId) {
 		return entry->isPlaying();
 }
 
+// FAUST.EXE 0x46cea0: true if any sound of that type is playing
 bool SoundManager::isPlayingType(SoundType soundType) {
 	for (Common::Array<SoundEntry *>::iterator it = _entries.begin(); it != _entries.end(); it++) {
 		SoundEntry *entry = (*it);
 
-		if (entry->getType() == soundType) {
-			if (entry->getType() == kSoundTypeDialog)
-				return _app->getDialogHandler()->isPlaying(entry->getId());
-			else
-				return entry->isPlaying();
+		if (entry->getType() != soundType)
+			continue;
+
+		if (entry->getType() == kSoundTypeDialog) {
+			if (_app->getDialogHandler()->isPlaying(entry->getId()))
+				return true;
+		} else if (entry->isPlaying()) {
+			return true;
 		}
 	}
 

@@ -312,6 +312,7 @@ public:
 	bool soundIsPlaying(Id soundId);
 	bool soundIsPlayingType(SoundType soundType);
 	void syncSoundSettings();
+	void addPausedTicks(uint32 ticks);
 	virtual void refreshPreferences() {}
 
 	//////////////////////////////////////////////////////////////////////////
