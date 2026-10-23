@@ -606,46 +606,15 @@ void ApplicationFaust::loadAndInitZone() {
 	varSetByte(98001, zone);
 }
 
+// FAUST.EXE 0x45a3c0: the load screen's RESTART starts the selected episode from the beginning
 void ApplicationFaust::initZone() {
-	bool resetZones = true;
+	int8 episode = varGetByte(98001);
 
-	switch (varGetByte(98001)) {
-	default:
-		resetZones = false;
-		break;
-
-	case kZoneSY:
-		setupZone(kZone2, kSetupType1);
-		break;
-
-	case kZone2:
-		setupZone(kZone3, kSetupType1);
-		break;
-
-	case kZone3:
-		setupZone(kZone4, kSetupType1);
-		break;
-
-	case kZone4:
-		setupZone(kZone5, kSetupType1);
-		break;
-
-	case kZone5:
-		setupZone(kZone6, kSetupType1);
-		break;
-
-	case kZone6:
-		setupZone(kZone7, kSetupType1);
-		break;
-
-	case kZone7:
-		setupZone(kZone8, kSetupType1);
-		break;
-	}
-
-	if (resetZones) {
+	// The zones are reset before the episode is set up (the setup used to be thrown away)
+	if (episode >= kZoneSY && episode <= kZone7) {
 		exitZone();
 		initZones();
+		setupZone((ZoneId)(episode + 1), kSetupType1);
 	}
 
 	varSetByte(98003, 0);
