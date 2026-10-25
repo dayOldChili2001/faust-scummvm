@@ -1970,6 +1970,10 @@ void ApplicationFaust::onAfterRide(Id movabilityFrom, Id movabilityTo, uint32 mo
 		_zone8->onAfterRide(movabilityFrom, movabilityTo, movabilityIndex, target, movabilityType);
 		break;
 
+	case kZone9:
+		_zone9->onAfterRide(movabilityFrom, movabilityTo, movabilityIndex, target, movabilityType);
+		break;
+
 	case kZone10:
 		_zone10->onAfterRide(movabilityFrom, movabilityTo, movabilityIndex, target, movabilityType);
 		break;
