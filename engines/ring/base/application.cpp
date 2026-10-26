@@ -1494,15 +1494,20 @@ void Application::puzzleAddAmbientSound(PuzzleId puzzleId, Id soundId, uint32 vo
 }
 
 void Application::puzzleSetAmbientSoundOn(PuzzleId puzzleId, Id soundId) {
-	if (!_puzzles.has(puzzleId))
-		error("[Application::puzzleSetAmbientSoundOn] Wrong puzzle Id (%d)", puzzleId.id());
+	// The original only logs a wrong id (Faust 0x477ce0), see rotationSetAmbientSoundOn()
+	if (!_puzzles.has(puzzleId)) {
+		warning("[Application::puzzleSetAmbientSoundOn] Wrong puzzle Id (%d)", puzzleId.id());
+		return;
+	}
 
 	_puzzles.get(puzzleId)->setAmbientSoundOn(soundId);
 }
 
 void Application::puzzleSetAmbientSoundOff(PuzzleId puzzleId, Id soundId) {
-	if (!_puzzles.has(puzzleId))
-		error("[Application::puzzleSetAmbientSoundOff] Wrong puzzle Id (%d)", puzzleId.id());
+	if (!_puzzles.has(puzzleId)) {
+		warning("[Application::puzzleSetAmbientSoundOff] Wrong puzzle Id (%d)", puzzleId.id());
+		return;
+	}
 
 	_puzzles.get(puzzleId)->setAmbientSoundOff(soundId);
 }
@@ -2282,15 +2287,21 @@ void Application::rotationAddAmbientSound(Id rotationId, Id soundId, uint32 volu
 }
 
 void Application::rotationSetAmbientSoundOn(Id rotationId, Id soundId) {
-	if (!_rotations.has(rotationId))
-		error("[Application::rotationSetAmbientSoundOn] Wrong rotation Id (%d)", rotationId);
+	// The original only logs a wrong id (Faust 0x478c60): the limbo screen's click handler turns
+	// on rotation 50004's sound, a leftover that no Faust zone has
+	if (!_rotations.has(rotationId)) {
+		warning("[Application::rotationSetAmbientSoundOn] Wrong rotation Id (%d)", rotationId);
+		return;
+	}
 
 	_rotations.get(rotationId)->setAmbientSoundOn(soundId);
 }
 
 void Application::rotationSetAmbientSoundOff(Id rotationId, Id soundId) {
-	if (!_rotations.has(rotationId))
-		error("[Application::rotationSetAmbientSoundOff] Wrong rotation Id (%d)", rotationId);
+	if (!_rotations.has(rotationId)) {
+		warning("[Application::rotationSetAmbientSoundOff] Wrong rotation Id (%d)", rotationId);
+		return;
+	}
 
 	_rotations.get(rotationId)->setAmbientSoundOff(soundId);
 }

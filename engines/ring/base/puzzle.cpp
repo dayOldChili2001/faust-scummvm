@@ -449,16 +449,20 @@ void Puzzle::add3DSound(SoundEntry *entry, uint32 volume, bool isOn, uint32 a4, 
 
 void Puzzle::setAmbientSoundOn(Id soundId) {
 	SoundItem *item = getSoundItem(soundId);
-	if (!item)
-		error("[Puzzle::setAmbientSoundOff] Wrong sound Id (%d)", soundId);
+	if (!item) {
+		warning("[Puzzle::setAmbientSoundOn] Wrong sound Id (%d)", soundId);
+		return;
+	}
 
 	item->on();
 }
 
 void Puzzle::setAmbientSoundOff(Id soundId) {
 	SoundItem *item = getSoundItem(soundId);
-	if (!item)
-		error("[Puzzle::setAmbientSoundOff] Wrong sound Id (%d)", soundId);
+	if (!item) {
+		warning("[Puzzle::setAmbientSoundOff] Wrong sound Id (%d)", soundId);
+		return;
+	}
 
 	item->off();
 }

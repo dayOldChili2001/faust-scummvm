@@ -617,16 +617,20 @@ void Rotation::add3DSound(SoundEntry *entry, uint32 volume, bool isOn, uint32 a4
 
 void Rotation::setAmbientSoundOn(Id soundId) {
 	SoundItem *item = getSoundItem(soundId);
-	if (!item)
-		error("[Rotation::setAmbientSoundOff] Wrong sound Id (%d)", soundId);
+	if (!item) {
+		warning("[Rotation::setAmbientSoundOn] Wrong sound Id (%d)", soundId);
+		return;
+	}
 
 	item->on();
 }
 
 void Rotation::setAmbientSoundOff(Id soundId) {
 	SoundItem *item = getSoundItem(soundId);
-	if (!item)
-		error("[Rotation::setAmbientSoundOff] Wrong sound Id (%d)", soundId);
+	if (!item) {
+		warning("[Rotation::setAmbientSoundOff] Wrong sound Id (%d)", soundId);
+		return;
+	}
 
 	item->off();
 }
