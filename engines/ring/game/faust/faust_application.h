@@ -163,7 +163,7 @@ private:
 	Zone17Faust     *_zone17;
 
 	int32 _slot;
-	ZoneId _zone;
+	int8 _menuSlot; // FAUST.EXE 0x4dbf0d: var 98001 as the menu handlers saved it
 	bool _controlNotPressed;
 
 	// Tracking variables

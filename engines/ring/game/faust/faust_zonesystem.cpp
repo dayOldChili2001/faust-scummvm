@@ -1734,8 +1734,9 @@ void ZoneSystemFaust::onButtonUp(ObjectId id, Id target, Id, uint32, const Commo
 		break;
 
 	case kObject99021:
-		// Load screen: start the selected progress state
+		// Load screen: start the selected progress state (initZone sets 98001 back to it afterwards)
 		_app->objectPresentationHide(kObject99001);
+		_app->_menuSlot = (int8)_app->varGetByte(98001);
 		hideMenuButtons(kObject99021, kObject99025);
 		_app->exitToMenu(kMenuAction3);
 		break;

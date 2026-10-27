@@ -90,7 +90,7 @@ static const struct {
 
 ApplicationFaust::ApplicationFaust(RingEngine *engine) : Application(engine) {
 	_slot = -1;
-	_zone = kZoneNone;
+	_menuSlot = 0;
 	_controlNotPressed = true;
 
 	// Event handlers
@@ -619,7 +619,7 @@ void ApplicationFaust::initZone() {
 
 	varSetByte(98003, 0);
 	varSetByte(98002, 1);
-	varSetByte(98001, _zone);
+	varSetByte(98001, _menuSlot);
 }
 
 void ApplicationFaust::initMenuSave(bool savegame) {
