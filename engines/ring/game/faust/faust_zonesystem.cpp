@@ -1188,7 +1188,9 @@ void ZoneSystemFaust::onButtonUp(ObjectId id, Id target, Id, uint32, const Commo
 			break;
 
 		case 3:
-			_app->rotationSetFreOff(_app->getCurrentRotationId());
+			// As in onKeyDown, the original only logs a warning without a current rotation (menu opened in a puzzle)
+			if (_app->hasCurrentRotation())
+				_app->rotationSetFreOff(_app->getCurrentRotationId());
 			_app->objectPresentationHide(kObject14);
 			_app->objectSetAccessibilityOff(kObject14);
 			_app->varSetByte(97002, 0);
@@ -1208,7 +1210,8 @@ void ZoneSystemFaust::onButtonUp(ObjectId id, Id target, Id, uint32, const Commo
 			// Resume
 			_app->setSpace((ZoneId)_app->varGetWord(97013));
 			_app->puzzleSetMod(kPuzzleMenu, 1, 0);
-			_app->rotationSetFreOff(_app->getCurrentRotationId());
+			if (_app->hasCurrentRotation())
+				_app->rotationSetFreOff(_app->getCurrentRotationId());
 			_app->objectPresentationHide(kObject14);
 			_app->objectSetAccessibilityOff(kObject14);
 			_app->varSetByte(97002, 0);
