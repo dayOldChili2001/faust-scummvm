@@ -1465,10 +1465,13 @@ void ApplicationFaust::onKeyDown(Common::Event &evt) {
 			if (!accessibility)
 				return;
 
-			// Center rotation
+			// Center rotation. The original (0x472150) converts a copy of the centre and
+			// hit-tests the menu accessibilities with the unconverted screen centre.
 			evt.mouse = accessibility->getHotspot()->getCenter();
-			if (hasCurrentRotation())
-				getCurrentRotation()->setCoordinates(&evt.mouse, evt.kbd.keycode);
+			if (hasCurrentRotation()) {
+				Common::Point rotationPoint = evt.mouse;
+				getCurrentRotation()->setCoordinates(&rotationPoint, evt.kbd.keycode);
+			}
 
 			simulateClick(evt, (evt.kbd.flags & Common::KBD_CTRL) != 0, true);
 			return;
