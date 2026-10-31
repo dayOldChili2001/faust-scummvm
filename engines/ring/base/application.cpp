@@ -317,7 +317,7 @@ void Application::loadConfiguration() {
 			if (Common::String(token) == "SOUNDCHUNCK_DIA:")
 				_configuration.dialog.soundChunck = (uint32)atoi((char *)&val);
 
-			if (Common::String(token) == "LOADFROM_DIA")
+			if (Common::String(token) == "LOADFROM_DIA:")
 				_configuration.dialog.loadFrom = (LoadFrom)atoi((char *)&val);
 
 			if (Common::String(token) == "ART_BAG:")
