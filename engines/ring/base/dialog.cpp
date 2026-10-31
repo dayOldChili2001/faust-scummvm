@@ -120,13 +120,11 @@ int32 Dialog::getLineIndex() {
 	if (_lines.empty())
 		return -1;
 
-	if (_lines.size() == 1)
-		return 0;
-
 	// Tick offset
 	uint32 ticks = g_system->getMillis() - _startTicks;
 
-	// Get the proper line
+	// Get the proper line: line i runs up to the next line's tick, so a dialog with a single line ends at once
+	// (exe 0x406b70; the last line of a .dia is only its END tick)
 	for (uint32 i = 0; i < _lines.size() - 1; i++) {
 		if (ticks >= _lines[i]->ticks && ticks <= _lines[i + 1]->ticks)
 			return i;
