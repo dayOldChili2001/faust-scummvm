@@ -788,18 +788,8 @@ void ApplicationFaust::draw() {
 		if (!_rotation)
 			error("[ApplicationRing::draw] No active rotation!");
 
-		if (!checkEscape()) {
-			if (_rotation->getState() != 0) {
-				if (_rotation->getState() == 3) {
-					_rotation->destroyImage();
-					_rotation->setState(0);
-				}
-			} else {
-				if (_rotation->hasImage())
-					_rotation->setState(3);
-			}
-		}
-
+		// The original toggles the rotation's image while Space is held (FAUST.EXE 0x40145d),
+		// but no rotation ever has one. Polling here would also eat events from the main loop.
 		if (_rotation->getState() != 0) {
 			if (_rotation->getState() == 3) {
 				_rotation->loadImage();

@@ -793,6 +793,7 @@ void Application::displayFade(Common::String filenameFrom, Common::String filena
 	ImageSurface *imageTo = nullptr;
 	Animation *animation = nullptr;
 	char *pixels = nullptr;
+	bool skipped = false;
 
 	if (archiveType == kArchiveInvalid)
 		archiveType = getArchiveType(getCurrentZone());
@@ -853,14 +854,14 @@ void Application::displayFade(Common::String filenameFrom, Common::String filena
 
 	// Create animation
 	animation = new Animation();
-	animation->init(frameCount, 25.0f, 1, 4, 0);
+	animation->init(frameCount, 15.0f, 1, 4, 0);
 	animation->setField21(2);
 	animation->setTicks(g_system->getMillis());
 
 	if (frameCount >= 1) {
 
 		uint32 currentFrame = 1;
-		while (!checkEscape()) {
+		while (!skipped && !checkEscape()) {
 			// Update imageFrom buffer
 			for (int i = 0; i < (int16)imageFrom->getHeight(); i++) {
 				byte *from = (byte *) imageFrom->getSurface()->getBasePtr(0, i);
@@ -878,7 +879,9 @@ void Application::displayFade(Common::String filenameFrom, Common::String filena
 			// running the main draw would paint over the fade, and the zone being set
 			// up may not have an active rotation yet.
 			while (animation->getCurrentFrame() == currentFrame) {
-				_vm->pollEvents();
+				if (_vm->pollEvents())
+					skipped = true;
+
 				_soundManager->updateQueue();
 				g_system->delayMillis(5);
 			}
@@ -898,7 +901,9 @@ void Application::displayFade(Common::String filenameFrom, Common::String filena
 	_screenManager->drawAndUpdate(imageTo, Common::Point(0, 16));
 	g_system->updateScreen();
 
-	waitForEscape(ticksWait);
+	// The original tests the held key here too, so an Escape that ends the fade also ends the wait
+	if (!skipped)
+		waitForEscape(ticksWait);
 
 cleanup:
 	SAFE_DELETE(animation);
