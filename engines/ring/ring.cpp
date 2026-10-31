@@ -61,7 +61,7 @@ namespace Ring {
 
 RingEngine::RingEngine(OSystem *syst, const RingGameDescription *gd) :
 	Engine(syst), _gameDescription(gd), _random("ring"),
-	_application(nullptr), _pauseStart(0), _mouseButtonPressed(false) , _flag(true) {
+	_application(nullptr), _pauseStart(0), _mouseButtonPressed(false), _keyUpHeld(false), _keyDownHeld(false), _flag(true) {
 
 	// Adding the default directories
 	const Common::FSNode gameDataDir(ConfMan.getPath("path"));
@@ -179,6 +179,8 @@ Common::Error RingEngine::run() {
 		// Handle input
 		Common::Event ev;
 		while (_eventMan->pollEvent(ev)) {
+			trackHeldKeys(ev);
+
 			switch (ev.type) {
 
 			case Common::EVENT_KEYDOWN:
@@ -250,6 +252,7 @@ Common::Error RingEngine::run() {
 bool RingEngine::pollEvents(bool updateCoords) {
 	Common::Event ev;
 	_eventMan->pollEvent(ev);
+	trackHeldKeys(ev);
 
 	switch (ev.type) {
 	default:
@@ -267,6 +270,16 @@ bool RingEngine::pollEvents(bool updateCoords) {
 	}
 
 	return false;
+}
+
+void RingEngine::trackHeldKeys(const Common::Event &ev) {
+	if (ev.type != Common::EVENT_KEYDOWN && ev.type != Common::EVENT_KEYUP)
+		return;
+
+	if (ev.kbd.keycode == Common::KEYCODE_UP)
+		_keyUpHeld = (ev.type == Common::EVENT_KEYDOWN);
+	else if (ev.kbd.keycode == Common::KEYCODE_DOWN)
+		_keyDownHeld = (ev.type == Common::EVENT_KEYDOWN);
 }
 
 void RingEngine::update() {

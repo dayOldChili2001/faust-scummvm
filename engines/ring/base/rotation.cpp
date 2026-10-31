@@ -194,7 +194,8 @@ void Rotation::updateAndDraw(float alp, float bet, float ran) {
 	getApp()->getScreenManager()->updateScreen();
 }
 
-void Rotation::setCoordinates(Common::Point *point, Common::KeyCode keycode) {
+// 0x4035d0
+void Rotation::setCoordinates(Common::Point *point) {
 
 	if (!_fre) {
 		float alpDiff = point->x * 0.0015625f    - 0.5f;
@@ -206,10 +207,12 @@ void Rotation::setCoordinates(Common::Point *point, Common::KeyCode keycode) {
 		if (ABS(betDiff) > 0.25f)
 			_bet += (ABS(betDiff) - 0.25f) * 48.0f * betDiff;
 
-		if (keycode == Common::KEYCODE_UP)
+		// The original polls the keys here (GetAsyncKeyState), so holding one keeps zooming
+		RingEngine *vm = (RingEngine *)g_engine;
+		if (vm->isKeyUpHeld())
 			_ran -= 1.0f;
 
-		if (keycode == Common::KEYCODE_DOWN)
+		if (vm->isKeyDownHeld())
 			_ran += 1.0f;
 	}
 
@@ -491,15 +494,21 @@ void Rotation::setMovabilityRideName(uint32 movabilityIndex, Common::String name
 	_movabilities[movabilityIndex]->setRideName(name);
 }
 
+// 0x402f30
 bool Rotation::setRolTo(float alp, float bet, float ran) {
 	alp -= 135.0f;
 	if (alp < 0.0f)
 		alp += 360.0f;
 
-	// Compute differences
-	float betDiff = ABS(bet - _bet);
-	float alpDiff = ABS(alp - _alp);
-	float ranDiff = ABS(ran - _ran);
+	// The roll goes from where the view is now, so these must not move during the loop
+	const float startAlp = _alp;
+	const float startBet = _bet;
+	const float startRan = _ran;
+
+	// The original truncates each difference to an integer
+	int32 betDiff = ABS((int32)(bet - startBet));
+	int32 alpDiff = ABS((int32)(alp - startAlp));
+	int32 ranDiff = ABS((int32)(ran - startRan));
 
 	// Get the higher difference
 	if (alpDiff > 180) {
@@ -513,15 +522,15 @@ bool Rotation::setRolTo(float alp, float bet, float ran) {
 		alpDiff = ranDiff;
 
 	// Compute alp
-	if ((alp - _alp) <= 180.0f) {
-		if ((alp - _alp) < -180.0f)
+	if ((alp - startAlp) <= 180.0f) {
+		if ((alp - startAlp) < -180.0f)
 			alp += 360.0f;
 	} else {
 		alp -= 360.0f;
 	}
 
 	// Compute count
-	uint32 count = (uint32)(alpDiff * 0.8f);
+	uint32 count = (uint32)((float)alpDiff * 0.8f);
 	if (count == 0)
 		return true;
 
@@ -531,12 +540,12 @@ bool Rotation::setRolTo(float alp, float bet, float ran) {
 			delta /= (count - 1);
 
 		// Update alp, bet and ran
-		_alp = _alp * (1.0f - delta) + alp * delta;
+		_alp = startAlp * (1.0f - delta) + alp * delta;
 		if (_alp > 360.0f)
 			_alp -= 360.0f;
 
-		_ran = _ran * (1.0f - delta) + ran * delta;
-		_bet = _bet * (1.0f - delta) + bet * delta;
+		_ran = startRan * (1.0f - delta) + ran * delta;
+		_bet = startBet * (1.0f - delta) + bet * delta;
 
 		_field_31 = 1.0f - delta;
 
@@ -605,7 +614,7 @@ void Rotation::add3DSound(SoundEntry *entry, uint32 volume, bool isOn, uint32 a4
 	SoundItem *item = new SoundItem(_id);
 
 	float val = _alp + 135.0f;
-	if (val < 360.0f)
+	if (val > 360.0f)
 		val -= 360.0f;
 
 	item->setField1D(a8);

@@ -25,6 +25,7 @@
 #include "ring/debug.h"
 #include "ring/detection.h"
 
+#include "common/events.h"
 #include "common/rect.h"
 #include "common/random.h"
 
@@ -94,8 +95,12 @@ public:
 	void setFlag(bool state) { _flag = state; }
 	bool isMouseButtonPressed() { return _mouseButtonPressed; }
 	Common::Point getCoordinates() { return _coordinates; }
+	bool isKeyUpHeld() const { return _keyUpHeld; }
+	bool isKeyDownHeld() const { return _keyDownHeld; }
 
 private:
+	void trackHeldKeys(const Common::Event &ev);
+
 	const RingGameDescription *_gameDescription;
 	Graphics::PixelFormat _pixelFormat;
 
@@ -110,6 +115,8 @@ private:
 
 	// Flags
 	bool _mouseButtonPressed;
+	bool _keyUpHeld;
+	bool _keyDownHeld;
 	Common::Point _coordinates;
 	bool _flag;
 };

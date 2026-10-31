@@ -805,7 +805,7 @@ void ApplicationFaust::draw() {
 				break;
 
 			_rotationPoint = _vm->getCoordinates();
-			_rotation->setCoordinates(&_rotationPoint, Common::KEYCODE_INVALID);
+			_rotation->setCoordinates(&_rotationPoint);
 			_rotation->draw();
 			_rotation->drawText();
 		}
@@ -1460,7 +1460,7 @@ void ApplicationFaust::onKeyDown(Common::Event &evt) {
 			evt.mouse = accessibility->getHotspot()->getCenter();
 			if (hasCurrentRotation()) {
 				Common::Point rotationPoint = evt.mouse;
-				getCurrentRotation()->setCoordinates(&rotationPoint, evt.kbd.keycode);
+				getCurrentRotation()->setCoordinates(&rotationPoint);
 			}
 
 			simulateClick(evt, (evt.kbd.flags & Common::KBD_CTRL) != 0, true);
@@ -1501,7 +1501,7 @@ void ApplicationFaust::onKeyDown(Common::Event &evt) {
 		evt.mouse = accessibility->getHotspot()->getCenter();
 
 		// Center rotation
-		currentRotation->setCoordinates(&evt.mouse, evt.kbd.keycode);
+		currentRotation->setCoordinates(&evt.mouse);
 
 		simulateClick(evt, (evt.kbd.flags & Common::KBD_CTRL) != 0, false);
 	}

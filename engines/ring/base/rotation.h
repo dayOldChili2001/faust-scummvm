@@ -52,7 +52,7 @@ public:
 
 	void update();
 	void updateAndDraw(float alp, float bet, float ran);
-	void setCoordinates(Common::Point *point, Common::KeyCode keycode);
+	void setCoordinates(Common::Point *point);
 	void loadImage();
 	void destroyImage();
 	void drawImage();
