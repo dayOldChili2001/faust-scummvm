@@ -279,6 +279,10 @@ Accessibility *Puzzle::getAccessibility(const Common::Point &point) {
 }
 
 Accessibility *Puzzle::getAccessibility(Common::KeyCode key) {
+	// Hotspots without a key hold KEYCODE_INVALID, which is also what an unmapped key sends
+	if (key == Common::KEYCODE_INVALID)
+		return nullptr;
+
 	for (Common::Array<Accessibility *>::iterator it = _accessibilities.begin(); it != _accessibilities.end(); it++) {
 		if (!(*it)->getHotspot()->isEnabled())
 			continue;
