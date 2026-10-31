@@ -131,7 +131,8 @@ void Bag::initHotspots() {
 	                                kCursor1002,
 	                                1002));
 
-	_hotspots.push_back(new Hotspot(Common::Rect(200, 0, 640, 30),
+	// FAUST.EXE 0x40dbb1: the "Menu" strip of the bag background (highlighted by _image8 at x 99)
+	_hotspots.push_back(new Hotspot(Common::Rect(90, 0, 190, 30),
 	                                true,
 	                                1000,
 	                                kCursor1003,
@@ -256,7 +257,7 @@ uint32 Bag::checkHotspot(const Common::Point &point) {
 		return 1;
 
 	case 1002:
-		if (_field_28 && (g_system->getMillis() - _ticks) > _tickInterval) {
+		if (_field_28 < _objectCount && (g_system->getMillis() - _ticks) > _tickInterval) {
 			++_field_28;
 			_ticks = g_system->getMillis();
 		}
@@ -279,12 +280,14 @@ uint32 Bag::checkHotspot(const Common::Point &point) {
 				// Compute coordinates
 				ImageHandle *image = _images[index];
 
-				int16 x = image->getCoordinates().x + _text->getCoordinates().x;
+				// FAUST.EXE 0x40e86d: centred on the icon and kept on screen
+				int16 width = (int16)_text->getWidth();
+				int16 x = image->getCoordinates().x - width / 2;
 				if (x < 0)
 					x = 0;
 
-				if (x > 640)
-					x = 640 - _text->getCoordinates().x;
+				if (x + width > 640)
+					x = 640 - width;
 
 				_text->setCoordinates(Common::Point(x, image->getCoordinates().y));
 
@@ -354,7 +357,7 @@ void Bag::draw(){
 	}
 
 	if (_drawImage8) {
-		screen->draw(_image8, Common::Point(_origin.x + (int16)_field_88, _origin.y + (int16)_field_8C), kDrawTypeAlpha);
+		screen->draw(_image8, Common::Point(_origin.x + (int16)_field_88, _origin.y + (int16)_field_8C), kDrawTypeNormal);
 
 		_drawImage8 = false;
 	}
