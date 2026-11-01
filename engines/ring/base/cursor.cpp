@@ -273,8 +273,12 @@ void CursorHandler::hide() const {
 }
 
 void CursorHandler::select(CursorId id) {
-	if (!_cursors.has(id))
-		error("[CursorHandler::select] ID doesn't exist (%d)", id);
+	// FAUST.EXE 0x407db0 only logs this and keeps the current cursor. Faust relies on it:
+	// object 6 on the race strip uses cursor 52, which the game never adds.
+	if (!_cursors.has(id)) {
+		debugC(kRingDebugLogic, "[CursorHandler::select] ID doesn't exist (%d)", id);
+		return;
+	}
 
 	_index = _cursors.getIndex(id);
 }
