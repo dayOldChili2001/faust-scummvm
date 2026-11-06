@@ -51,7 +51,9 @@ HTTPFilesystemNode::HTTPFilesystemNode(const Common::String &p) : _path(p), _isV
 	if (_path == DATA_PATH) { // need special case for handling the root of the http-filesystem
 		_isDirectory = true;
 		_isValid = true;
-		_url = _path;
+		// Relative to the page ("data", not "/data"), so the build also works
+		// when it's served from a subfolder, such as a GitHub Pages project site
+		_url = _path.substr(1);
 	} else { // we need to peek in the parent folder to see if the node exists and if it's a directory
 		AbstractFSNode *parent = getParent();
 		AbstractFSList tmp = AbstractFSList();
