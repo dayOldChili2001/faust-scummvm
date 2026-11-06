@@ -57,6 +57,7 @@ public:
 	void delayMillis(uint msecs) override;
 	void init() override;
 	void addSysArchivesToSearchSet(Common::SearchSet &s, int priority) override;
+	Common::KeymapperDefaultBindings *getKeymapperDefaultBindings() override;
 
 #ifdef USE_CLOUD
 	void setCloudConnectionCallback(CloudConnectionCallback cb) { _cloudConnectionCallback = cb; }

@@ -11,7 +11,9 @@ if (window.location.hash.length > 0) {
 
 // MIDI support
 var midiOutputMap;
-if (!("requestMIDIAccess" in navigator)) {
+if (globalThis.faustNoMidi) {
+	// Faust has no MIDI music: don't ask the player for MIDI access
+} else if (!("requestMIDIAccess" in navigator)) {
 	console.error("No MIDI support in your browser.");
 } else {
 	navigator

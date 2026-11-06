@@ -9,6 +9,10 @@
 (function () {
 	var DEP = "faust-folder";
 
+	// Read by custom_shell-pre.js (loaded after this file): Faust has no MIDI
+	// music, so the page never asks for Web MIDI access
+	globalThis.faustNoMidi = true;
+
 	// Lower-cased path -> { name, dir: [lower-cased child paths] } or { name, file | handle }
 	var entries = {};
 	globalThis.faustLocalFs = {

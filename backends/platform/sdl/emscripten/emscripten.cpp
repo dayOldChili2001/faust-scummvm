@@ -32,6 +32,9 @@
 #include "backends/fs/emscripten/emscripten-fs-factory.h"
 #include "backends/platform/sdl/emscripten/emscripten.h"
 #include "backends/timer/emscripten/emscripten-timer.h"
+#include "backends/keymapper/keymapper.h"
+#include "backends/keymapper/keymapper-defaults.h"
+#include "backends/keymapper/standard-actions.h"
 #include "common/file.h"
 #ifdef USE_TTS
 #include "backends/text-to-speech/emscripten/emscripten-text-to-speech.h"
@@ -226,6 +229,17 @@ void OSystem_Emscripten::addSysArchivesToSearchSet(Common::SearchSet &s, int pri
 	if (dataNode.exists() && dataNode.isDirectory()) {
 		s.addDirectory(dataNode, priority, 2, false);
 	}
+}
+
+Common::KeymapperDefaultBindings *OSystem_Emscripten::getKeymapperDefaultBindings() {
+	Common::KeymapperDefaultBindings *keymapperDefaultBindings = new Common::KeymapperDefaultBindings();
+
+	// Ctrl+F5 is the browser's hard reload, so the Global Main Menu also
+	// gets a plain function key that no browser reserves.
+	keymapperDefaultBindings->setDefaultBinding(Common::kGlobalKeymapName, Common::kStandardActionOpenMainMenu, "F8");
+	keymapperDefaultBindings->addDefaultBinding(Common::kGlobalKeymapName, Common::kStandardActionOpenMainMenu, "C+F5");
+
+	return keymapperDefaultBindings;
 }
 
 void OSystem_Emscripten::delayMillis(uint msecs) {
