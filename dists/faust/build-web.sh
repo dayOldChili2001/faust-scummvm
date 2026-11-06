@@ -36,6 +36,8 @@ fi
 mkdir -p "$BUILD"
 cd "$BUILD"
 if [ ! -f config.mk ]; then
+	# Keep this machine's source path out of the binary (assert messages)
+	CXXFLAGS="-ffile-prefix-map=$SRC/=" CFLAGS="-ffile-prefix-map=$SRC/=" \
 	emconfigure "$SRC/configure" --host=wasm32-unknown-emscripten --build=wasm32-unknown-emscripten \
 		--disable-all-engines --enable-engine=ring,faust --disable-detection-full \
 		--enable-faust-standalone --enable-release
