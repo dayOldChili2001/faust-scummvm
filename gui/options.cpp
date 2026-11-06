@@ -1940,6 +1940,12 @@ void OptionsDialog::addSubtitleControls(GuiObject *boss, const Common::String &p
 	// Subtitle speed
 	_subSpeedSlider = new SliderWidget(boss, prefix + "subSubtitleSpeedSlider", Common::U32String(), kSubtitleSpeedChanged);
 	_subSpeedLabel = new StaticTextWidget(boss, prefix + "subSubtitleSpeedLabel", Common::U32String("100%"), Common::U32String(), ThemeEngine::kFontStyleBold, Common::UNK_LANG, false);
+#ifdef FAUST_STANDALONE
+	// Faust times its subtitles itself and never reads talkspeed
+	_subSpeedDesc->setVisible(false);
+	_subSpeedSlider->setVisible(false);
+	_subSpeedLabel->setVisible(false);
+#endif
 	_subSpeedSlider->setMinValue(0); _subSpeedSlider->setMaxValue(maxSliderVal);
 	_subSpeedLabel->setFlags(WIDGET_CLEARBG);
 

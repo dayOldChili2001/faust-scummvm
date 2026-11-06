@@ -61,6 +61,9 @@ public:
 protected:
 	void save();
 	void load();
+#ifdef FAUST_STANDALONE
+	void addFaustTitle();
+#endif
 
 protected:
 	Engine *_engine;

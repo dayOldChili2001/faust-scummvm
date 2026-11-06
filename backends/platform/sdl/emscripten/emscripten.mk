@@ -51,3 +51,13 @@ endif
 	cp "$(srcdir)/dists/emscripten/assets/"* ./build-emscripten/
 	cp "$(srcdir)/gui/themes/common-svg/logo.svg" ./build-emscripten/
 	cp "$(srcdir)/icons/scummvm.ico" ./build-emscripten/favicon.ico
+ifdef FAUST_STANDALONE
+	# Faust branding: page title, icons, loading screen and web app manifest
+	cp "$(srcdir)/icons/faust.ico" ./build-emscripten/favicon.ico
+	cp "$(srcdir)/icons/faust.png" ./build-emscripten/faust.png
+	cp "$(srcdir)/dists/emscripten/faust/manifest.json" ./build-emscripten/manifest.json
+	rm -f ./build-emscripten/scummvm-192.png ./build-emscripten/scummvm-512.png ./build-emscripten/logo.svg
+	sed -i.bak -e 's|<title>ScummVM</title>|<title>Faust</title>|' -e 's|Downloading ScummVM|Downloading Faust|g' \
+		-e 's|scummvm-192.png|faust.png|g' -e 's|url("logo.svg")|url("faust.png")|' -e 's|#cc6600|#1a0304|g' -e 's|#c60;|#1a0304;|g' -e 's|#c60}|#1a0304}|g' \
+		./build-emscripten/$(notdir $(EXECUTABLE)) && rm -f ./build-emscripten/$(notdir $(EXECUTABLE)).bak
+endif

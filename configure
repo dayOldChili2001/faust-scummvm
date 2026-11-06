@@ -6642,7 +6642,7 @@ fi
 define_in_config_h_if_yes "$_readline" 'USE_READLINE'
 
 define_in_config_h_if_yes "$_text_console" 'USE_TEXT_CONSOLE_FOR_DEBUGGER'
-define_in_config_h_if_yes "$_faust_standalone" 'FAUST_STANDALONE'
+define_in_config_if_yes "$_faust_standalone" 'FAUST_STANDALONE'
 
 #
 # Check for Unity if taskbar integration is enabled

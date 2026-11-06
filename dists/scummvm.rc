@@ -15,7 +15,11 @@
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "dists/win32/scummvm.exe.manifest"
 
 // Common resources
+#ifdef FAUST_STANDALONE
+IDI_ICON               ICON    "icons/faust.ico"
+#else
 IDI_ICON               ICON    "icons/scummvm.ico"
+#endif
 IDI_COUNT              ICON    "icons/count.ico"
 
 ID_GDF_XML             DATA    "dists/win32/scummvm.gdf.xml"

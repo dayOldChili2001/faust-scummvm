@@ -141,6 +141,9 @@ bundle-pack:
 	mkdir -p $(bundle_name)/Contents/Resources
 	printf "APPL????" > $(bundle_name)/Contents/PkgInfo
 	sed -e 's/$$(PRODUCT_BUNDLE_IDENTIFIER)/org.scummvm.app/' $(srcdir)/dists/macosx/Info.plist >$(bundle_name)/Contents/Info.plist
+ifdef FAUST_STANDALONE
+	sed -i '' -e 's|<string>ScummVM</string>|<string>Faust</string>|' $(bundle_name)/Contents/Info.plist
+endif
 ifdef USE_SPARKLE
 	mkdir -p $(bundle_name)/Contents/Frameworks
 	cp $(srcdir)/dists/macosx/dsa_pub.pem $(bundle_name)/Contents/Resources/
@@ -149,7 +152,9 @@ ifdef USE_SPARKLE
 	rm -f $(bundle_name)/Contents/Frameworks/Sparkle.framework/XPCServices
 	rm -rf $(bundle_name)/Contents/Frameworks/Sparkle.framework/Versions/Current/XPCServices/
 endif
-ifdef MACOSX_LEOPARD_OR_BELOW
+ifdef FAUST_STANDALONE
+	cp $(srcdir)/icons/faust.icns $(bundle_name)/Contents/Resources/scummvm.icns
+else ifdef MACOSX_LEOPARD_OR_BELOW
 	cp $(srcdir)/icons/scummvm_legacy.icns $(bundle_name)/Contents/Resources/scummvm.icns
 else
 	cp $(srcdir)/icons/scummvm.icns $(bundle_name)/Contents/Resources/scummvm.icns

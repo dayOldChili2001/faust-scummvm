@@ -102,10 +102,56 @@ AboutDialog::~AboutDialog() {
 	delete _fluidScroller;
 }
 
+#ifdef FAUST_STANDALONE
+// The Faust build's About text: the game, the engine, then ScummVM's
+// copyright, licence and credits
+static const char *const faust_text[] = {
+"C1""Faust: The Seven Games of the Soul",
+"C0""Original game (C) 1999 Arxel Tribe",
+"",
+"C0""This program plays your own copy of Faust. It contains none of the game's files.",
+"",
+"C1""Ring engine",
+"C0""Littleboy",
+"C2""Ring engine for ScummVM",
+"",
+};
+#endif
+
 void AboutDialog::buildLines() {
 	_lines.clear();
 
 	int i;
+
+#ifdef FAUST_STANDALONE
+	_lines.push_back(Common::U32String());
+
+	for (i = 0; i < ARRAYSIZE(faust_text); i++)
+		addLine(Common::U32String(faust_text[i]));
+
+	Common::String faustVersion("C0""Built on ");
+	faustVersion += gScummVMFullVersion;
+	addLine(faustVersion);
+	addLine(Common::U32String("C2") + Common::U32String::format(_("(built on %s with %s)"), gScummVMBuildDate, gScummVMCompiler));
+
+	for (i = 0; i < ARRAYSIZE(copyright_text); i++)
+		addLine(Common::U32String(copyright_text[i]));
+	for (i = 0; i < ARRAYSIZE(gpl_text); i++)
+		addLine(Common::U32String(gpl_text[i]));
+
+	_lines.push_back(Common::U32String());
+	for (i = 0; i < ARRAYSIZE(credits); i++)
+		addLine(Common::U32String(credits[i], Common::kUtf8));
+
+	if (_scrollbar) {
+		_scrollbar->_numEntries = _lines.size() * _lineHeight;
+		int buttonHeight = g_gui.xmlEval()->getVar("Globals.Button.Height", 24);
+		_scrollbar->_entriesPerPage = _h - buttonHeight - 8 - 3 * _yOff;
+		_scrollbar->_singleStep = _lineHeight;
+		_scrollbar->recalc();
+	}
+	return;
+#endif
 
 	for (i = 0; i < 1; i++)
 		_lines.push_back(Common::U32String());

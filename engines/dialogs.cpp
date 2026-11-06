@@ -49,6 +49,36 @@ MainMenuDialog::MainMenuDialog(Engine *engine)
 	: GUI::Dialog("GlobalMenu"), _engine(engine) {
 	_backgroundType = GUI::ThemeEngine::kDialogBackgroundSpecial;
 
+#ifdef FAUST_STANDALONE
+	// The Faust build is branded as Faust: a text title instead of the
+	// ScummVM logo, and only the buttons that apply to the game.
+	_logo = 0;
+	_returnToLauncherButton = nullptr;
+	_helpButton = nullptr;
+	addFaustTitle();
+
+	GUI::StaticTextWidget *version = new GUI::StaticTextWidget(this, "GlobalMenu.Version", Common::U32String::format("Ring engine, %s", gScummVMFullVersion));
+	version->setAlign(Graphics::kTextAlignCenter);
+
+	new GUI::ButtonWidget(this, "GlobalMenu.Resume", _("~R~esume"), Common::U32String(), kPlayCmd, 'P');
+	new GUI::ButtonWidget(this, "GlobalMenu.Options", _("~O~ptions"), Common::U32String(), kOptionsCmd);
+	new GUI::ButtonWidget(this, "GlobalMenu.About", _("~A~bout"), Common::U32String(), kAboutCmd);
+	if (!g_system->hasFeature(OSystem::kFeatureNoQuit))
+		new GUI::ButtonWidget(this, "GlobalMenu.Quit", _("~Q~uit"), Common::U32String(), kQuitCmd);
+
+	_aboutDialog = new GUI::AboutDialog(true);
+	_loadDialog = nullptr;
+	_saveDialog = nullptr;
+}
+
+void MainMenuDialog::addFaustTitle() {
+	// Highres layouts put the logo where lowres ones put the title
+	int16 x, y, w, h;
+	const char *name = g_gui.xmlEval()->getWidgetData("GlobalMenu.Title", x, y, w, h) ? "GlobalMenu.Title" : "GlobalMenu.Logo";
+	GUI::StaticTextWidget *title = new GUI::StaticTextWidget(this, name, Common::U32String("Faust"), Common::U32String(), GUI::ThemeEngine::kFontStyleBold);
+	title->setAlign(Graphics::kTextAlignCenter);
+}
+#else
 #ifndef DISABLE_FANCY_THEMES
 	_logo = 0;
 	if (g_gui.xmlEval()->getVar("Globals.ShowGlobalMenuLogo", 0) == 1 && g_gui.theme()->supportsImages()) {
@@ -97,6 +127,7 @@ MainMenuDialog::MainMenuDialog(Engine *engine)
 	_loadDialog = new GUI::SaveLoadChooser(false);
 	_saveDialog = new GUI::SaveLoadChooser(true);
 }
+#endif
 
 MainMenuDialog::~MainMenuDialog() {
 	delete _aboutDialog;
@@ -156,6 +187,18 @@ void MainMenuDialog::handleCommand(GUI::CommandSender *sender, uint32 cmd, uint3
 }
 
 void MainMenuDialog::reflowLayout() {
+#ifdef FAUST_STANDALONE
+	// The title widget moves between the Logo and Title slots with the layout
+	GUI::Widget *title = findWidget("GlobalMenu.Title");
+	if (!title)
+		title = findWidget("GlobalMenu.Logo");
+	if (title) {
+		removeWidget(title);
+		title->setNext(0);
+		delete title;
+	}
+	addFaustTitle();
+#else
 	// Overlay size might have changed since the construction of the dialog.
 	// Update labels when it might be needed
 	// FIXME: it might be better to declare GUI::StaticTextWidget::setLabel() virtual
@@ -191,6 +234,7 @@ void MainMenuDialog::reflowLayout() {
 			_logo = 0;
 		}
 	}
+#endif
 #endif
 
 	Dialog::reflowLayout();

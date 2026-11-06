@@ -296,15 +296,29 @@ void replaceApplicationMenuItems() {
 		[[NSApp mainMenu] removeItemAtIndex:0];
 	}
 
+#ifdef FAUST_STANDALONE
+	NSMenu *appleMenu = addMenu(Common::U32String("Faust"), @"", @selector(setAppleMenu:));
+#else
 	NSMenu *appleMenu = addMenu(Common::U32String("ScummVM"), @"", @selector(setAppleMenu:));
+#endif
 	if (appleMenu) {
+#ifdef FAUST_STANDALONE
+		addMenuItem(_("About Faust"), nil, @selector(orderFrontStandardAboutPanel:), @"", appleMenu);
+		[appleMenu addItem:[NSMenuItem separatorItem]];
+		addMenuItem(_("Hide Faust"), nil, @selector(hide:), @"h", appleMenu);
+#else
 		addMenuItem(_("About ScummVM"), nil, @selector(orderFrontStandardAboutPanel:), @"", appleMenu);
 		[appleMenu addItem:[NSMenuItem separatorItem]];
 		addMenuItem(_("Hide ScummVM"), nil, @selector(hide:), @"h", appleMenu);
+#endif
 		addMenuItem(_("Hide Others"), nil, @selector(hideOtherApplications:), @"h", appleMenu, (NSEventModifierFlagOption|NSEventModifierFlagCommand));
 		addMenuItem(_("Show All"), nil, @selector(unhideAllApplications:), @"", appleMenu);
 		[appleMenu addItem:[NSMenuItem separatorItem]];
+#ifdef FAUST_STANDALONE
+		addMenuItem(_("Quit Faust"), nil, @selector(terminate:), @"q", appleMenu);
+#else
 		addMenuItem(_("Quit ScummVM"), nil, @selector(terminate:), @"q", appleMenu);
+#endif
 	}
 
 	NSMenu *windowMenu = addMenu(_("Window"), @"", @selector(setWindowsMenu:));
@@ -321,11 +335,14 @@ void replaceApplicationMenuItems() {
 		if (!delegate) {
 			delegate = [[ScummVMMenuHandler alloc] init];
 		}
+#ifndef FAUST_STANDALONE
+		// The Faust build keeps only the credits and licences
 		addMenuItem(_("User Manual"), delegate, @selector(openUserManual), @"", helpMenu);
 		[helpMenu addItem:[NSMenuItem separatorItem]];
 		addMenuItem(_("General Information"), delegate, @selector(openReadme), @"", helpMenu);
 		addMenuItem(_("What's New in ScummVM"), delegate, @selector(openNews), @"", helpMenu);
 		[helpMenu addItem:[NSMenuItem separatorItem]];
+#endif
 		addMenuItem(_("Credits"), delegate, @selector(openCredits), @"", helpMenu);
 		addMenuItem(_("GPL License"), delegate, @selector(openLicenseGPL), @"", helpMenu);
 		addMenuItem(_("LGPL License"), delegate, @selector(openLicenseLGPL), @"", helpMenu);

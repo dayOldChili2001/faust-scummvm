@@ -28,7 +28,11 @@
 #include "common/util.h"
 #include "common/config-manager.h"
 
+#ifdef FAUST_STANDALONE
+#include "icons/faust.xpm"
+#else
 #include "icons/scummvm.xpm"
+#endif
 
 #if SDL_VERSION_ATLEAST(3, 0, 0)
 static const uint32 fullscreenMask = SDL_WINDOW_FULLSCREEN;

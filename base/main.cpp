@@ -329,7 +329,11 @@ static Common::Error runGame(const Plugin *enginePlugin, OSystem &system, const 
 	engine->setMetaEngine(&metaEngine);
 
 	// Set the window caption to the game name
+#ifdef FAUST_STANDALONE
+	Common::String caption("Faust");
+#else
 	Common::String caption(ConfMan.get("description"));
+#endif
 
 	if (caption.empty())
 		caption = game.description;
@@ -457,7 +461,11 @@ static void setupGraphics(OSystem &system) {
 	system.applyBackendSettings();
 
 	// Set initial window caption
+#ifdef FAUST_STANDALONE
+	system.setWindowCaption(Common::U32String("Faust"));
+#else
 	system.setWindowCaption(Common::U32String(gScummVMFullVersion));
+#endif
 
 	// Clear the main screen
 	system.fillScreen(0);
