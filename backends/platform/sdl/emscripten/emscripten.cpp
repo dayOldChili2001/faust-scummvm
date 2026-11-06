@@ -132,6 +132,14 @@ void OSystem_Emscripten::init() {
 	EmscriptenFilesystemFactory *fsFactory = new EmscriptenFilesystemFactory();
 	_fsFactory = fsFactory;
 
+	// SDL 3.2.4 never removes its key listeners when the default target (the
+	// window) is used: Emscripten_UnregisterEventHandlers dereferences the
+	// EMSCRIPTEN_EVENT_TARGET_WINDOW constant as a string. ScummVM recreates
+	// the SDL window several times, so each key press arrived once per old
+	// window (6 times in Faust). A selector string is removed properly, and
+	// key events from the page all bubble through <body>.
+	SDL_SetHint(SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT, "body");
+
 	// Invoke parent implementation of this method
 	OSystem_SDL::init();
 }
