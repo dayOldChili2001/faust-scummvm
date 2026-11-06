@@ -1,0 +1,16 @@
+{
+  "short_name": "Faust",
+  "name": "Faust: The Seven Games of the Soul",
+  "icons": [
+    {
+      "src": "faust.png",
+      "type": "image/png",
+      "sizes": "256x256"
+    }
+  ],
+  "start_url": "scummvm.html#faust",
+  "background_color": "#1a0304",
+  "display": "fullscreen",
+  "theme_color": "#1a0304",
+  "description": "Play your own copy of Faust (Arxel Tribe, 1999) in the browser, on the ScummVM Ring engine."
+}
