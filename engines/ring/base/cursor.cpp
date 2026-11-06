@@ -177,6 +177,7 @@ void CursorAnimation::dealloc() {
 
 void CursorAnimation::draw() {
 	// Compute current frame, but do not draw on screen
+	getCurrentFrame();
 	playFrame(false);
 
 	// Replace cursor

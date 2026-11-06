@@ -41,7 +41,7 @@ public:
 
 	void play();
 	void setVolume(int32 volume);
-	void queueBuffer(Common::SeekableReadStream *stream);
+	void queueBuffer(byte *data, uint32 size);
 
 private:
 	Audio::SoundHandle                            _handle;

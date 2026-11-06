@@ -401,13 +401,13 @@ bool Movie::readSound() {
 		return true;
 
 	// Read sound data
-	byte *soundBuffer = (byte *)calloc(soundSize, 1);
+	byte *soundBuffer = (byte *)malloc(soundSize);
 	if (!soundBuffer)
 		error("[Movie::readSound] Cannot allocate sound buffer");
 
 	cinematic->read(soundBuffer, soundSize);
 
-	_sound->queueBuffer(new Common::MemoryReadStream(soundBuffer, soundSize, DisposeAfterUse::YES));
+	_sound->queueBuffer(soundBuffer, soundSize);
 
 	return true;
 }

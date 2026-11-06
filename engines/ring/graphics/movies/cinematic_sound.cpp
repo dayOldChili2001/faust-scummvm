@@ -29,7 +29,8 @@
 #include "ring/ring.h"
 #include "ring/helpers.h"
 
-#include "audio/decoders/adpcm.h"
+#include "audio/audiostream.h"
+#include "audio/decoders/raw.h"
 
 namespace Ring {
 
@@ -104,18 +105,25 @@ void CinematicSound::setVolume(int32 volume) {
 	getSound()->getMixer()->setChannelVolume(_handle, _volume);
 }
 
-void CinematicSound::queueBuffer(Common::SeekableReadStream *stream) {
+void CinematicSound::queueBuffer(byte *data, uint32 size) {
 	if (!_audioStream)
-		error("[CinematicSound::play] Audiostream not initialized properly");
+		error("[CinematicSound::queueBuffer] Audiostream not initialized properly");
 
-	Audio::RewindableAudioStream *adpcm = Audio::makeADPCMStream(stream, DisposeAfterUse::YES, stream->size(), Audio::kADPCMMS, _samplesPerSec, _channels, _blockAlign);
-	if (!adpcm) {
-		warning("[CinematicSound::queueBuffer] Cannot decode sound stream");
-		return;
-	}
+	// The movie sound chunks are plain PCM (every Faust movie: 16-bit little-endian stereo, 22050 Hz),
+	// not MS ADPCM: decoding them as ADPCM turned the audio into full-scale noise.
+	byte flags = 0;
+	if (_bitsPerSample == 16)
+		flags |= Audio::FLAG_16BITS | Audio::FLAG_LITTLE_ENDIAN;
+	else
+		flags |= Audio::FLAG_UNSIGNED;
+	if (_channels == 2)
+		flags |= Audio::FLAG_STEREO;
 
-	// Queue the stream
-	_audioStream->queueAudioStream(adpcm);
+	// Keep whole sample frames only
+	size -= size % MAX<uint32>(_blockAlign, 1);
+
+	// Queue the samples (the stream frees the buffer)
+	_audioStream->queueBuffer(data, size, DisposeAfterUse::YES, flags);
 }
 
 #pragma endregion
