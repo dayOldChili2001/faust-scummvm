@@ -25,6 +25,7 @@
 #include "backends/fs/emscripten/emscripten-fs-factory.h"
 #include "backends/fs/emscripten/emscripten-posix-fs.h"
 #include "backends/fs/emscripten/http-fs.h"
+#include "backends/fs/emscripten/local-fs.h"
 #include "backends/fs/posix/posix-fs.h"
 #include "backends/fs/posix/posix-iostream.h"
 #include "common/system.h"
@@ -46,6 +47,8 @@ bool EmscriptenPOSIXFilesystemNode::getChildren(AbstractFSList &myList, ListMode
 	if (_path == "/") {
 		HTTPFilesystemNode *data_entry = new HTTPFilesystemNode(DATA_PATH);
 		myList.push_back(data_entry);
+		if (LocalFilesystemNode::isMounted())
+			myList.push_back(new LocalFilesystemNode(LOCAL_FS_PATH));
 
 #ifdef USE_CLOUD
 		if (CloudMan.isStorageEnabled()) {

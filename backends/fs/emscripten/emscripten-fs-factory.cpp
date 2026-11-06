@@ -26,6 +26,7 @@
 #include "backends/fs/emscripten/emscripten-fs-factory.h"
 #include "backends/fs/emscripten/emscripten-posix-fs.h"
 #include "backends/fs/emscripten/http-fs.h"
+#include "backends/fs/emscripten/local-fs.h"
 #include "common/debug.h"
 #ifdef USE_CLOUD
 #include "backends/fs/emscripten/cloud-fs.h"
@@ -84,6 +85,8 @@ AbstractFSNode *EmscriptenFilesystemFactory::makeFileNodePath(const Common::Stri
 			_httpNodes->setVal(path, new HTTPFilesystemNode(path));
 		}
 		return new HTTPFilesystemNode(*(_httpNodes->getVal(path)));
+	} else if ((path == LOCAL_FS_PATH || path.hasPrefix(LOCAL_FS_PATH "/")) && LocalFilesystemNode::isMounted()) {
+		return new LocalFilesystemNode(path);
 #ifdef USE_CLOUD
 	} else if (path.hasPrefix(CLOUD_FS_PATH) && CloudMan.isStorageEnabled()) {
 		return new CloudFilesystemNode(path);
